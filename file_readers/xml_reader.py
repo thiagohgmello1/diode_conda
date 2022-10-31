@@ -1,6 +1,7 @@
 from xml.dom import minidom
-import numpy as np
 import skgeom
+import re
+from skgeom.draw import draw
 
 
 class XMLReader:
@@ -8,21 +9,49 @@ class XMLReader:
         self.file_name = file_name
 
 
-    def get_paths(self):
-        paths = dict()
+    def get_general_polygons(self):
+        polygons = list()
         document = minidom.parse(self.file_name)
         paths_str = [path.getAttribute('d').split(' ') for path in document.getElementsByTagName('path')]
-        paths_id = [structure.getAttribute('id') for structure in document.getElementsByTagName('path')]
-        for path_id, path_str in zip(paths_id, paths_str):
-            paths[path_id] = np.array([path.split(',') for path in path_str[1:-1]]).astype(float)
-
+        self.get_attributes()
+        for path_str in paths_str:
+            path = [path.split(',') for path in path_str[1:-1]]
+            polygons.append(skgeom.Polygon(self.create_points(path)))
         document.unlink()
-        return paths
+        return polygons
 
 
-    def get_rectangles(self):
-        paths = dict()
+    def get_attributes(self):
         document = minidom.parse(self.file_name)
-        rectangles = document.getElementsByTagName('rect')
-        rectangles_id = [structure.getAttribute('id') for structure in document.getElementsByTagName('path')]
+        [re.split('M|L|H|V|C|S|Q|T|A|Z', path.getAttribute('d')) for path in document.getElementsByTagName('path')]
 
+
+    def get_rectangles(self) -> list:
+        rectangles = list()
+        document = minidom.parse(self.file_name)
+        for rectangle in document.getElementsByTagName('rect'):
+            x_0 = float(rectangle.getAttribute('x'))
+            y_0 = float(rectangle.getAttribute('y'))
+            p_0 = skgeom.Point2(x_0, y_0)
+            x_1 = x_0 + float(rectangle.getAttribute('width'))
+            y_1 = y_0 + float(rectangle.getAttribute('height'))
+            p_1 = skgeom.Point2(x_1, y_1)
+            rectangles.append(skgeom.Polygon(p_0, p_1))
+        document.unlink()
+        return rectangles
+
+
+    def get_geometries(self):
+        polygons = self.get_general_polygons()
+        rectangles = self.get_rectangles()
+        polygons.extend(rectangles)
+        return polygons
+
+
+    @staticmethod
+    def create_points(points_list):
+        points = list()
+        for point in points_list:
+            point = [float(p) for p in point]
+            points.append(skgeom.Point2(point[0], point[1]))
+        return points
