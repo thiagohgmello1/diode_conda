@@ -1,6 +1,7 @@
 from xml.dom import minidom
 import skgeom
 import re
+from file_readers.xml_attr import create_points
 from skgeom.draw import draw
 
 
@@ -13,17 +14,30 @@ class XMLReader:
         polygons = list()
         document = minidom.parse(self.file_name)
         paths_str = [path.getAttribute('d').split(' ') for path in document.getElementsByTagName('path')]
-        self.get_attributes()
+        polygons_attributes = self.get_polygons_attributes()
+        create_points(polygons_attributes)
         for path_str in paths_str:
             path = [path.split(',') for path in path_str[1:-1]]
-            polygons.append(skgeom.Polygon(self.create_points(path)))
+            polygons.append(skgeom.Polygon(self.create_points2(path)))
         document.unlink()
         return polygons
 
 
-    def get_attributes(self):
+    def get_polygons_attributes(self):
         document = minidom.parse(self.file_name)
-        [re.split('M|L|H|V|C|S|Q|T|A|Z', path.getAttribute('d')) for path in document.getElementsByTagName('path')]
+        paths = [
+            re.split(r'(M|L|H|V|C|S|Q|T|A|Z)', path.getAttribute('d')) for path in document.getElementsByTagName('path')
+        ]
+
+        polygons_attributes = self.create_attributes(paths)
+        return polygons_attributes
+
+
+    @staticmethod
+    def create_attributes(paths):
+        attributes = [list(filter(None, path))[:-1] for path in paths]
+        attributes = [dict(zip(attribute[::2], attribute[1::2])) for attribute in attributes]
+        return attributes
 
 
     def get_rectangles(self) -> list:
@@ -49,7 +63,7 @@ class XMLReader:
 
 
     @staticmethod
-    def create_points(points_list):
+    def create_points2(points_list):
         points = list()
         for point in points_list:
             point = [float(p) for p in point]
