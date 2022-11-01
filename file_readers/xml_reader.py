@@ -1,8 +1,10 @@
 from xml.dom import minidom
-import skgeom
+import skgeom as sg
 import re
 from file_readers.xml_attr import create_points, func_dict
 from skgeom.draw import draw
+
+SVG_D_ATTR = r'(M|L|H|V|C|S|Q|T|A|Z)'
 
 
 class XMLReader:
@@ -14,14 +16,14 @@ class XMLReader:
         polygons = list()
         polygons_attributes = self.get_polygons_attributes()
         for polygon in polygons_attributes:
-            polygons.append(skgeom.Polygon(create_points(polygon)))
+            polygons.append(sg.Polygon(create_points(polygon)))
         return polygons
 
 
     def get_polygons_attributes(self):
         document = minidom.parse(self.file_name)
         paths = [
-            re.split(r'(M|L|H|V|C|S|Q|T|A|Z)', path.getAttribute('d')) for path in document.getElementsByTagName('path')
+            re.split(SVG_D_ATTR, path.getAttribute('d')) for path in document.getElementsByTagName('path')
         ]
 
         polygons_attributes = self.create_attributes(paths)
@@ -53,11 +55,11 @@ class XMLReader:
             y_0 = float(rectangle.getAttribute('y'))
             x_1 = x_0 + float(rectangle.getAttribute('width'))
             y_1 = y_0 + float(rectangle.getAttribute('height'))
-            p_00 = skgeom.Point2(x_0, y_0)
-            p_01 = skgeom.Point2(x_0, y_1)
-            p_10 = skgeom.Point2(x_1, y_0)
-            p_11 = skgeom.Point2(x_1, y_1)
-            rectangles.append(skgeom.Polygon([p_00, p_01, p_11, p_10]))
+            p_00 = sg.Point2(x_0, y_0)
+            p_01 = sg.Point2(x_0, y_1)
+            p_10 = sg.Point2(x_1, y_0)
+            p_11 = sg.Point2(x_1, y_1)
+            rectangles.append(sg.Polygon([p_00, p_01, p_11, p_10]))
         document.unlink()
         return rectangles
 

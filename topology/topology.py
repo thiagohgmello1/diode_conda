@@ -1,35 +1,42 @@
-import skgeom
+import skgeom as sg
 import numpy as np
 
 from skgeom.draw import draw
-from skgeom import boolean_set
 from file_readers.xml_reader import XMLReader
 
 
 class Topology:
-    def __init__(self, topologies):
-        self.topologies: list[skgeom.Polygon] = topologies
-        self.set_orientation()
+    def __init__(self, topologies: list[sg.Polygon], time_scale: float, space_scale: float):
+        topologies = self.set_orientation(topologies)
+        self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
+        self.time_scale = time_scale
+        self.space_scale = space_scale
 
 
     @classmethod
-    def from_file(cls, file_name: str):
+    def from_file(cls, file_name: str, time_scale: float, space_scale: float):
         topologies = XMLReader(file_name)
-        return cls(topologies.get_geometries())
+        return cls(topologies.get_geometries(), time_scale, space_scale)
 
 
     @classmethod
-    def from_points(cls, points: list[list]):
+    def from_points(cls, points: list[list], time_scale: float, space_scale: float):
         topologies = list()
         for geometry in points:
-            topologies.append(skgeom.Polygon(cls.create_points(geometry)))
-        return cls(topologies)
+            topologies.append(sg.Polygon(cls.create_points(geometry)))
+        return cls(topologies, time_scale, space_scale)
 
 
-    def set_orientation(self):
-        for polygon in self.topologies:
-            if polygon.orientation() == -1:
-                polygon.reverse_orientation()
+    def is_inside_polygon_set(self, point: sg.Point2):
+        is_inside = self.topologies.locate(point)
+        if is_inside:
+            return True
+        else:
+            return False
+
+
+    def diff_polygon(self, polygon: sg.Polygon):
+        self.topologies = self.topologies.difference(polygon)
 
 
     def get_segments(self, pos=None):
@@ -37,16 +44,17 @@ class Topology:
         if pos:
             segments.append(self.topologies[pos].edges)
         else:
-            for polygon in self.topologies:
+            for polygon in self.topologies.polygons:
                 segments.append(polygon.edges)
         return [edge for segment in segments for edge in segment]
 
 
-    def union(self, indices: list[int]):
-        indices = sorted(indices, reverse=True)
-        merge_topologies = [self.topologies[pos] for pos in indices]
-        [self.topologies.pop(pos) for pos in indices]
-        boolean_set.join(*merge_topologies)
+    @staticmethod
+    def set_orientation(polygons):
+        for polygon in polygons:
+            if polygon.orientation() == -1:
+                polygon.reverse_orientation()
+        return polygons
 
 
     @staticmethod
@@ -70,18 +78,20 @@ class Topology:
         points = list()
         for point in points_list:
             point = [float(p) for p in point]
-            points.append(skgeom.Point2(point[0], point[1]))
+            points.append(sg.Point2(point[0], point[1]))
         return points
 
 
 if __name__ == "__main__":
-    A = [0, 0]
-    B = [0, 1]
-    C = [1, 0]
-    D = [1, 1]
-    # pol1 = Topology.from_points([[A, B, D, C], [A, B, C, D]])
+    A = [100, 80]
+    B = [100, 100]
+    C = [120, 100]
+    D = [120, 80]
+    # pol1 = Topology.from_points([[A, B, D, C]], 1e-9, 1e-9)
     # segments1 = pol1.get_segments()
-    pol2 = Topology.from_file('../tests/test.svg')
-    segments2 = pol2.get_segments()
-    pol2.union([0, 4])
+    test_point = sg.Point2(0, 0)
+    pol2 = Topology.from_file('../tests/test2.svg', 1e-9, 1e-9)
+    pol = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
+    print(pol2.is_inside_polygon_set(test_point))
+    # segments2 = pol2.get_segments()
     print('ei')
