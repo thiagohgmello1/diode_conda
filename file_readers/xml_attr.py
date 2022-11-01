@@ -1,18 +1,27 @@
 import skgeom
 
 
-def create_points(attributes: list):
-    polygons = list()
-    for polygon in attributes:
-        moveto_points = moveto(polygon.get('M'))
+def moveto(points: str):
+    points = points.split(' ')[1:-1]
+    return [points.split(',') for points in points]
 
 
-def moveto(points_str: str, *args):
-    points_str = points_str.split(' ')[1:-1]
-    return [points.split(',') for points in points_str]
+def lineto(next_point: str, *args):
+    next_point = next_point.split(' ')[1:-1]
+    return [points.split(',') for points in next_point]
 
 
-def create_points2(points_list):
+def horizontal(new_x_coord, previous_point):
+    previous_point[0] = new_x_coord
+    return [previous_point]
+
+
+def vertical(new_y_coord, previous_point):
+    previous_point[1] = new_y_coord
+    return [previous_point]
+
+
+def create_points(points_list):
     points = list()
     for point in points_list:
         point = [float(p) for p in point]
@@ -20,4 +29,4 @@ def create_points2(points_list):
     return points
 
 
-func_dict = {'M': moveto}
+func_dict = {'M': moveto, 'L': lineto, 'H': horizontal, 'V': vertical}

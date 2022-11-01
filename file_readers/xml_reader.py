@@ -1,7 +1,7 @@
 from xml.dom import minidom
 import skgeom
 import re
-from file_readers.xml_attr import create_points
+from file_readers.xml_attr import create_points, func_dict
 from skgeom.draw import draw
 
 
@@ -12,14 +12,9 @@ class XMLReader:
 
     def get_general_polygons(self):
         polygons = list()
-        document = minidom.parse(self.file_name)
-        paths_str = [path.getAttribute('d').split(' ') for path in document.getElementsByTagName('path')]
         polygons_attributes = self.get_polygons_attributes()
-        create_points(polygons_attributes)
-        for path_str in paths_str:
-            path = [path.split(',') for path in path_str[1:-1]]
-            polygons.append(skgeom.Polygon(self.create_points2(path)))
-        document.unlink()
+        for polygon in polygons_attributes:
+            polygons.append(skgeom.Polygon(create_points(polygon)))
         return polygons
 
 
@@ -30,14 +25,24 @@ class XMLReader:
         ]
 
         polygons_attributes = self.create_attributes(paths)
+        document.unlink()
         return polygons_attributes
 
 
     @staticmethod
     def create_attributes(paths):
+        polygons = list()
         attributes = [list(filter(None, path))[:-1] for path in paths]
-        attributes = [dict(zip(attribute[::2], attribute[1::2])) for attribute in attributes]
-        return attributes
+        attributes = [tuple(zip(attribute[::2], attribute[1::2])) for attribute in attributes]
+        for polygon in attributes:
+            params = list()
+            for attribute, value in polygon:
+                if attribute == 'M':
+                    params.extend(func_dict[attribute](value))
+                else:
+                    params.extend(func_dict[attribute](value, params[-1].copy()))
+            polygons.append(params)
+        return polygons
 
 
     def get_rectangles(self) -> list:
@@ -46,11 +51,13 @@ class XMLReader:
         for rectangle in document.getElementsByTagName('rect'):
             x_0 = float(rectangle.getAttribute('x'))
             y_0 = float(rectangle.getAttribute('y'))
-            p_0 = skgeom.Point2(x_0, y_0)
             x_1 = x_0 + float(rectangle.getAttribute('width'))
             y_1 = y_0 + float(rectangle.getAttribute('height'))
-            p_1 = skgeom.Point2(x_1, y_1)
-            rectangles.append(skgeom.Polygon(p_0, p_1))
+            p_00 = skgeom.Point2(x_0, y_0)
+            p_01 = skgeom.Point2(x_0, y_1)
+            p_10 = skgeom.Point2(x_1, y_0)
+            p_11 = skgeom.Point2(x_1, y_1)
+            rectangles.append(skgeom.Polygon([p_00, p_01, p_11, p_10]))
         document.unlink()
         return rectangles
 
@@ -60,12 +67,3 @@ class XMLReader:
         rectangles = self.get_rectangles()
         polygons.extend(rectangles)
         return polygons
-
-
-    @staticmethod
-    def create_points2(points_list):
-        points = list()
-        for point in points_list:
-            point = [float(p) for p in point]
-            points.append(skgeom.Point2(point[0], point[1]))
-        return points

@@ -9,6 +9,7 @@ from file_readers.xml_reader import XMLReader
 class Topology:
     def __init__(self, topologies):
         self.topologies: list[skgeom.Polygon] = topologies
+        self.set_orientation()
 
 
     @classmethod
@@ -25,6 +26,12 @@ class Topology:
         return cls(topologies)
 
 
+    def set_orientation(self):
+        for polygon in self.topologies:
+            if polygon.orientation() == -1:
+                polygon.reverse_orientation()
+
+
     def get_segments(self, pos=None):
         segments = list()
         if pos:
@@ -35,8 +42,11 @@ class Topology:
         return [edge for segment in segments for edge in segment]
 
 
-    def union(self):
-        boolean_set.join(*self.topologies)
+    def union(self, indices: list[int]):
+        indices = sorted(indices, reverse=True)
+        merge_topologies = [self.topologies[pos] for pos in indices]
+        [self.topologies.pop(pos) for pos in indices]
+        boolean_set.join(*merge_topologies)
 
 
     @staticmethod
@@ -69,8 +79,9 @@ if __name__ == "__main__":
     B = [0, 1]
     C = [1, 0]
     D = [1, 1]
-    # pol1 = Topology.from_points([[A, B, D, C]])
+    # pol1 = Topology.from_points([[A, B, D, C], [A, B, C, D]])
     # segments1 = pol1.get_segments()
     pol2 = Topology.from_file('../tests/test.svg')
     segments2 = pol2.get_segments()
+    pol2.union([0, 4])
     print('ei')
