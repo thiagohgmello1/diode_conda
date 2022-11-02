@@ -51,14 +51,16 @@ class Topology:
 
     def diff_polygon(self, polygon: sg.Polygon):
         polygon = self.set_orientation([polygon])
-        self.topologies = self.topologies.difference(polygon)
+        for pol in polygon:
+            self.topologies = self.topologies.difference(pol)
         self.get_boundaries_polygons()
         self.get_segments()
 
 
     def union_polygon(self, polygon: sg.Polygon):
         polygon = self.set_orientation([polygon])
-        self.topologies = self.topologies.union(polygon)
+        for pol in polygon:
+            self.topologies = self.topologies.union(pol)
         self.get_boundaries_polygons()
         self.get_segments()
 
@@ -81,7 +83,7 @@ class Topology:
         self.segments['external'] = external_segments
 
 
-    def cross_points(self, segment_to_compare: sg.Segment2):
+    def intersection_points(self, segment_to_compare: sg.Segment2):
         intersection_points = list()
         for segments in self.segments.values():
             for segment in segments:
@@ -113,12 +115,8 @@ if __name__ == "__main__":
     B = [100, 100]
     C = [120, 100]
     D = [120, 80]
-    # pol1 = Topology.from_points([[A, B, D, C]], 1e-9, 1e-9)
-    # segments1 = pol1.get_segments()
     test_point = sg.Point2(0, 0)
-    test_segment = sg.Segment2(sg.Point2(100, 80), sg.Point2(80, 50))
+    test_segment = sg.Segment2(sg.Point2(110, 80), sg.Point2(80, 70))
     pol2 = Topology.from_file('../tests/test2.svg', 1e-9, 1e-9)
     pol = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
     print(pol2.contains(test_point))
-    pol2.diff_polygon(pol)
-    print('ei')
