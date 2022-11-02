@@ -11,6 +11,10 @@ class Topology:
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
         self.time_scale = time_scale
         self.space_scale = space_scale
+        self.boundaries = dict()
+        self.get_boundaries_points()
+        self.segments = dict()
+        self.get_segments()
 
 
     @classmethod
@@ -27,7 +31,7 @@ class Topology:
         return cls(topologies, time_scale, space_scale)
 
 
-    def is_inside_polygon_set(self, point: sg.Point2):
+    def contains(self, point: sg.Point2):
         is_inside = self.topologies.locate(point)
         if is_inside:
             return True
@@ -35,18 +39,42 @@ class Topology:
             return False
 
 
+    def get_boundaries_points(self):
+        external_boundaries = list()
+        internal_boundaries = list()
+        for polygon in self.topologies.polygons:
+            external_boundaries.extend([polygon.outer_boundary()])
+            internal_boundaries.extend(list(polygon.holes))
+        self.boundaries['internal'] = internal_boundaries
+        self.boundaries['external'] = external_boundaries
+
+
     def diff_polygon(self, polygon: sg.Polygon):
         self.topologies = self.topologies.difference(polygon)
+        self.get_boundaries_points()
 
 
-    def get_segments(self, pos=None):
-        segments = list()
-        if pos:
-            segments.append(self.topologies[pos].edges)
-        else:
-            for polygon in self.topologies.polygons:
-                segments.append(polygon.edges)
-        return [edge for segment in segments for edge in segment]
+    def union_polygon(self, polygon: sg.Polygon):
+        self.topologies = self.topologies.union(polygon)
+        self.get_boundaries_points()
+
+
+    def get_segments(self):
+        def extract_segments(pols):
+            segments = list()
+            for pol in pols:
+                segments.extend(list(pol.edges))
+            return segments
+
+        internal_segments = list()
+        external_segments = list()
+        for region, polygons in self.boundaries.items():
+            if region == 'internal':
+                internal_segments.extend(extract_segments(polygons))
+            else:
+                external_segments.extend(extract_segments(polygons))
+        self.segments['internal'] = internal_segments
+        self.segments['external'] = external_segments
 
 
     @staticmethod
@@ -92,6 +120,10 @@ if __name__ == "__main__":
     test_point = sg.Point2(0, 0)
     pol2 = Topology.from_file('../tests/test2.svg', 1e-9, 1e-9)
     pol = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
-    print(pol2.is_inside_polygon_set(test_point))
+    print(pol2.contains(test_point))
+    pol2.diff_polygon(pol)
+    pol2.get_boundaries_points()
     # segments2 = pol2.get_segments()
     print('ei')
+    seg = sg.Segment2(sg.Point2(*D), sg.Point2(*C))
+    seg.supporting_line()
