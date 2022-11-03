@@ -1,7 +1,7 @@
 from xml.dom import minidom
 import skgeom as sg
 import re
-from file_readers.xml_attr import create_points, func_dict
+from file_readers.xml_attr import func_dict
 from skgeom.draw import draw
 
 SVG_D_ATTR = r'(M|L|H|V|C|S|Q|T|A|Z)'
@@ -16,7 +16,7 @@ class XMLReader:
         polygons = list()
         polygons_attributes = self.get_polygons_attributes()
         for polygon in polygons_attributes:
-            polygons.append(sg.Polygon(create_points(polygon)))
+            polygons.append(sg.Polygon(self.create_points(polygon)))
         return polygons
 
 
@@ -29,22 +29,6 @@ class XMLReader:
         polygons_attributes = self.create_attributes(paths)
         document.unlink()
         return polygons_attributes
-
-
-    @staticmethod
-    def create_attributes(paths):
-        polygons = list()
-        attributes = [list(filter(None, path))[:-1] for path in paths]
-        attributes = [tuple(zip(attribute[::2], attribute[1::2])) for attribute in attributes]
-        for polygon in attributes:
-            params = list()
-            for attribute, value in polygon:
-                if attribute == 'M':
-                    params.extend(func_dict[attribute](value))
-                else:
-                    params.extend(func_dict[attribute](value, params[-1].copy()))
-            polygons.append(params)
-        return polygons
 
 
     def get_rectangles(self) -> list:
@@ -69,3 +53,28 @@ class XMLReader:
         rectangles = self.get_rectangles()
         polygons.extend(rectangles)
         return polygons
+
+
+    @staticmethod
+    def create_attributes(paths):
+        polygons = list()
+        attributes = [list(filter(None, path))[:-1] for path in paths]
+        attributes = [tuple(zip(attribute[::2], attribute[1::2])) for attribute in attributes]
+        for polygon in attributes:
+            params = list()
+            for attribute, value in polygon:
+                if attribute == 'M':
+                    params.extend(func_dict[attribute](value))
+                else:
+                    params.extend(func_dict[attribute](value, params[-1].copy()))
+            polygons.append(params)
+        return polygons
+
+
+    @staticmethod
+    def create_points(points_list):
+        points = list()
+        for point in points_list:
+            point = [float(p) for p in point]
+            points.append(sg.Point2(point[0], point[1]))
+        return points

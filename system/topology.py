@@ -6,11 +6,10 @@ from file_readers.xml_reader import XMLReader
 
 
 class Topology:
-    def __init__(self, topologies: list[sg.Polygon], time_scale: float, space_scale: float):
+    def __init__(self, topologies: list[sg.Polygon]):
         topologies = self.set_orientation(topologies)
+        self.bbox = None
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
-        self.time_scale = time_scale
-        self.space_scale = space_scale
         self.boundaries = dict()
         self.get_boundaries_polygons()
         self.segments = dict()
@@ -18,17 +17,17 @@ class Topology:
 
 
     @classmethod
-    def from_file(cls, file_name: str, time_scale: float, space_scale: float):
+    def from_file(cls, file_name: str):
         topologies = XMLReader(file_name)
-        return cls(topologies.get_geometries(), time_scale, space_scale)
+        return cls(topologies.get_geometries())
 
 
     @classmethod
-    def from_points(cls, points: list[list], time_scale: float, space_scale: float):
+    def from_points(cls, points: list[list]):
         topologies = list()
         for geometry in points:
             topologies.append(sg.Polygon(cls.create_points(geometry)))
-        return cls(topologies, time_scale, space_scale)
+        return cls(topologies)
 
 
     def contains(self, point: sg.Point2):
@@ -47,6 +46,7 @@ class Topology:
             internal_boundaries.extend(list(polygon.holes))
         self.boundaries['internal'] = internal_boundaries
         self.boundaries['external'] = external_boundaries
+        self.bbox = self.boundaries['external'][0].bbox()
 
 
     def diff_polygon(self, polygon: sg.Polygon):
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     D = [120, 80]
     test_point = sg.Point2(0, 0)
     test_segment = sg.Segment2(sg.Point2(110, 80), sg.Point2(80, 70))
-    pol2 = Topology.from_file('../tests/test2.svg', 1e-9, 1e-9)
+    pol2 = Topology.from_file('../tests/test2.svg')
     pol = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
+    pol.bbox()
     print(pol2.contains(test_point))

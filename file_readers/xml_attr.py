@@ -21,12 +21,4 @@ def vertical(new_y_coord, previous_point):
     return [previous_point]
 
 
-def create_points(points_list):
-    points = list()
-    for point in points_list:
-        point = [float(p) for p in point]
-        points.append(skgeom.Point2(point[0], point[1]))
-    return points
-
-
 func_dict = {'M': moveto, 'L': lineto, 'H': horizontal, 'V': vertical}
