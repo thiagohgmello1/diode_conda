@@ -1,6 +1,6 @@
 from utils.random_gen import random_vec
 from utils.vec_operations import mirror
-from skgeom import Bbox2
+from skgeom import Bbox2, Vector2
 from material import Material
 
 import numpy as np
