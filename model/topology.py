@@ -1,12 +1,12 @@
 import skgeom as sg
-import numpy as np
 
+from model.material import Material
 from skgeom.draw import draw
 from file_readers.xml_reader import XMLReader
 
 
 class Topology:
-    def __init__(self, topologies: list[sg.Polygon]):
+    def __init__(self, topologies: list[sg.Polygon], material: Material):
         topologies = self.set_orientation(topologies)
         self.bbox = None
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
@@ -14,20 +14,21 @@ class Topology:
         self.get_boundaries_polygons()
         self.segments = dict()
         self.get_segments()
+        self.material = material
 
 
     @classmethod
-    def from_file(cls, file_name: str):
+    def from_file(cls, file_name: str, material: Material):
         topologies = XMLReader(file_name)
-        return cls(topologies.get_geometries())
+        return cls(topologies.get_geometries(), material)
 
 
     @classmethod
-    def from_points(cls, points: list[list]):
+    def from_points(cls, points: list[list], material: Material):
         topologies = list()
         for geometry in points:
             topologies.append(sg.Polygon(cls.create_points(geometry)))
-        return cls(topologies)
+        return cls(topologies, material)
 
 
     def contains(self, point: sg.Point2):
@@ -115,9 +116,10 @@ if __name__ == "__main__":
     B = [100, 100]
     C = [120, 100]
     D = [120, 80]
+    material = Material(1, 1)
     test_point = sg.Point2(0, 0)
     test_segment = sg.Segment2(sg.Point2(110, 80), sg.Point2(80, 70))
-    pol2 = Topology.from_file('../tests/test2.svg')
+    pol2 = Topology.from_file('../tests/test2.svg', material)
     pol = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
     pol.bbox()
     print(pol2.contains(test_point))

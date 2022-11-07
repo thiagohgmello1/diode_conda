@@ -1,9 +1,7 @@
 from utils.random_gen import random_vec
-from utils.vec_operations import mirror
-from skgeom import Bbox2, Vector2
+from utils.vec_operations import mirror, vec_to_point
+from skgeom import Bbox2, Vector2, Point2, Segment2
 from material import Material
-
-import numpy as np
 
 
 class Particle:
@@ -11,14 +9,19 @@ class Particle:
         self.charge = charge
         self.mass = mass
         self.size = size
-        self.fermi_velocity = random_vec() * fermi_velocity
+        self.scalar_fermi_velocity = fermi_velocity
+        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
         self.velocity = None
         self.position = position
         self.path = None
 
 
-    def calc_velocity(self, electric_field: np.array, material: Material):
-        avg_vel = -1 * (electric_field * self.charge * material.relax_time) / (self.mass * material.mass_scale)
+    def set_fermi_velocity(self):
+        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
+
+
+    def calc_velocity(self, electric_field: Vector2, material: Material):
+        avg_vel = electric_field * (-1 * self.charge * material.relax_time / (self.mass * material.mass_scale))
         self.velocity = self.fermi_velocity + avg_vel
 
 
@@ -29,10 +32,14 @@ class Particle:
 
 
     def calc_next_pos(self, time: float):
-        return self.position + self.velocity * time
+        next_pos = self.position + self.velocity * time
+        p_0 = vec_to_point(self.position)
+        p_1 = vec_to_point(next_pos)
+        self.path = Segment2(p_0, p_1)
+        return next_pos
 
 
-    def move(self, normal_vec: np.array, time: float, electric_field: np.array, material: Material):
+    def move(self, normal_vec: Vector2, time: float, electric_field: Vector2, material: Material):
         self.position = self.position + self.velocity * time
         self.velocity = mirror(self.velocity, normal_vec)
         self.calc_velocity(electric_field, material)
@@ -41,7 +48,7 @@ class Particle:
 if __name__ == '__main__':
     particle = Particle(1, 1, 1, 10)
     mat = Material(1, 1)
-    e_field = np.array([1, 0])
+    e_field = Vector2(1, 0)
     particle.calc_velocity(e_field, mat)
     box = Bbox2(1, 2, 3, 4)
     particle.set_init_position(box)

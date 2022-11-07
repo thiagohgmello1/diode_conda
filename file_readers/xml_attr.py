@@ -1,6 +1,3 @@
-import skgeom
-
-
 def moveto(points: str):
     points = points.split(' ')[1:-1]
     return [points.split(',') for points in points]
