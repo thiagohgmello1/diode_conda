@@ -1,6 +1,6 @@
 import random
 from skgeom import Vector2
-from utils.vec_operations import norm
+from utils.complementary_operations import norm
 
 
 def random_vec(shape=2, min_value: tuple = (-1, -1), max_value: tuple = (1, 1), is_normalized: bool = True) -> Vector2:

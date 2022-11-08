@@ -1,5 +1,6 @@
 import skgeom as sg
 
+from utils.complementary_operations import equal, vec_to_point
 from model.material import Material
 from skgeom.draw import draw
 from file_readers.xml_reader import XMLReader
@@ -84,12 +85,13 @@ class Topology:
         self.segments['external'] = external_segments
 
 
-    def intersection_points(self, segment_to_compare: sg.Segment2):
+    def intersection_points(self, segment_to_compare: sg.Segment2, actual_particle_vec: sg.Vector2):
+        actual_pos = vec_to_point(actual_particle_vec)
         intersection_points = list()
         for segments in self.segments.values():
             for segment in segments:
                 intersection_point = sg.intersection(segment, segment_to_compare)
-                if intersection_point:
+                if intersection_point and not equal(intersection_point, actual_pos):
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 

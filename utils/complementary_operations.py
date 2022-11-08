@@ -26,13 +26,21 @@ def mirror(vec: Vector2, normal_vec: Vector2):
 
 
 def calc_normal(segment: Segment2, point: Point2):
+    if not segment:
+        return None
     supporting_line = segment.supporting_line()
     perpendicular_line = supporting_line.perpendicular(point)
-    return perpendicular_line.direction()
+    return perpendicular_line.to_vector()
 
 
 def vec_to_point(vector: Vector2):
     return Point2(vector.x(), vector.y())
+
+
+def equal(point_1: Point2, point_2: Point2):
+    x_coord = np.isclose(point_1.x().__float__(), point_2.x().__float__())
+    y_coord = np.isclose(point_1.y().__float__(), point_2.y().__float__())
+    return x_coord and y_coord
 
 
 if __name__ == '__main__':

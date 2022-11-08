@@ -1,6 +1,7 @@
 from utils.random_gen import random_vec
-from utils.vec_operations import mirror, vec_to_point
+from utils.complementary_operations import mirror, vec_to_point
 from skgeom import Bbox2, Vector2, Point2, Segment2
+from skgeom.draw import draw
 from material import Material
 
 
@@ -13,7 +14,7 @@ class Particle:
         self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
         self.velocity = None
         self.position = position
-        self.path = None
+        self.positions = list()
 
 
     def set_fermi_velocity(self):
@@ -35,14 +36,19 @@ class Particle:
         next_pos = self.position + self.velocity * time
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
-        self.path = Segment2(p_0, p_1)
-        return next_pos
+        path = Segment2(p_0, p_1)
+        return path
+
+
+    def time_to_collision(self, position: Point2, path: Segment2):
+        pos = Segment2(path[0], position)
+        return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
     def move(self, normal_vec: Vector2, time: float, electric_field: Vector2, material: Material):
         self.position = self.position + self.velocity * time
         self.velocity = mirror(self.velocity, normal_vec)
-        self.calc_velocity(electric_field, material)
+        # self.calc_velocity(electric_field, material)
 
 
 if __name__ == '__main__':
