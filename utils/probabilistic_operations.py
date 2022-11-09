@@ -12,3 +12,11 @@ def random_vec(shape=2, min_value: tuple = (-1, -1), max_value: tuple = (1, 1), 
         vec_norm = norm(rand_vec)
         rand_vec = rand_vec / vec_norm
     return rand_vec
+
+
+def decision(probability):
+    return random.uniform(0, 1) < probability
+
+
+def random_number(min_value, max_value):
+    return random.uniform(min_value, max_value)

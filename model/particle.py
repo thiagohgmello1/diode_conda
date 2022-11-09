@@ -1,14 +1,15 @@
-from utils.random_gen import random_vec
-from utils.complementary_operations import mirror, vec_to_point
-from skgeom import Bbox2, Vector2, Point2, Segment2
 from skgeom.draw import draw
 from material import Material
+from utils.probabilistic_operations import random_vec
+from scipy.constants import electron_mass, elementary_charge
+from skgeom import Bbox2, Vector2, Point2, Segment2
+from utils.complementary_operations import mirror, vec_to_point
 
 
 class Particle:
-    def __init__(self, charge: float, mass: float, size: float, fermi_velocity: float, position=None):
-        self.charge = charge
-        self.mass = mass
+    def __init__(self, density: float, effective_mass: float, size: float, fermi_velocity: float, position=None):
+        self.charge = elementary_charge * density
+        self.mass = electron_mass * effective_mass * density
         self.size = size
         self.scalar_fermi_velocity = fermi_velocity
         self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
@@ -22,7 +23,7 @@ class Particle:
 
 
     def calc_velocity(self, electric_field: Vector2, material: Material):
-        avg_vel = electric_field * (-1 * self.charge * material.relax_time / (self.mass * material.mass_scale))
+        avg_vel = electric_field * (-1 * self.charge * material.relax_time / self.mass)
         self.velocity = self.fermi_velocity + avg_vel
 
 
@@ -45,15 +46,17 @@ class Particle:
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
-    def move(self, normal_vec: Vector2, time: float, electric_field: Vector2, material: Material):
+    def move(self, normal_vec: Vector2, time: float, electric_field: Vector2, material: Material, relaxation: bool):
         self.position = self.position + self.velocity * time
         self.velocity = mirror(self.velocity, normal_vec)
-        # self.calc_velocity(electric_field, material)
+        if relaxation:
+            self.set_fermi_velocity()
+            self.calc_velocity(electric_field, material)
 
 
 if __name__ == '__main__':
     particle = Particle(1, 1, 1, 10)
-    mat = Material(1, 1)
+    mat = Material(1, 1, 1)
     e_field = Vector2(1, 0)
     particle.calc_velocity(e_field, mat)
     box = Bbox2(1, 2, 3, 4)

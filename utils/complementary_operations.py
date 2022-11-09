@@ -43,6 +43,13 @@ def equal(point_1: Point2, point_2: Point2):
     return x_coord and y_coord
 
 
+def create_segments(points_list: list[Point2]):
+    segments_list = list()
+    for pos in range(len(points_list) - 1):
+        segments_list.append(Segment2(points_list[pos], points_list[pos + 1]))
+    return segments_list
+
+
 if __name__ == '__main__':
     vec1 = Vector2(-1, -1)
     vec2 = Vector2(1, 0)
