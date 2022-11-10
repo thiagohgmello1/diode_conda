@@ -11,20 +11,25 @@ class Particle:
         self.charge = elementary_charge * density
         self.mass = electron_mass * effective_mass * density
         self.size = size
+        self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
         self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
-        self.velocity = None
+        self.velocity = self.fermi_velocity
         self.position = position
         self.positions = list()
+
+
+    def calc_acceleration(self, electric_field: Vector2):
+        self.acceleration = electric_field * (-1 * self.charge / self.mass)
 
 
     def set_fermi_velocity(self):
         self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
 
 
-    def calc_velocity(self, electric_field: Vector2, material: Material):
-        avg_vel = electric_field * (-1 * self.charge * material.relax_time / self.mass)
-        self.velocity = self.fermi_velocity + avg_vel
+    def calc_velocity(self, electric_field: Vector2, delta_t: float):
+        self.calc_acceleration(electric_field)
+        self.velocity += self.acceleration * delta_t
 
 
     def set_init_position(self, bbox: Bbox2):
@@ -33,7 +38,7 @@ class Particle:
         self.position = random_vec(min_value=min_range, max_value=max_range, is_normalized=False)
 
 
-    def calc_next_pos(self, time: float):
+    def calc_position(self, time: float):
         next_pos = self.position + self.velocity * time
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
@@ -46,19 +51,19 @@ class Particle:
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
-    def move(self, normal_vec: Vector2, time: float, electric_field: Vector2, material: Material, relaxation: bool):
-        self.position = self.position + self.velocity * time
+    def move(self, normal_vec: Vector2, delta_t: float, electric_field: Vector2, relaxation: bool):
+        self.position = self.position + self.velocity * delta_t
         self.velocity = mirror(self.velocity, normal_vec)
         if relaxation:
             self.set_fermi_velocity()
-            self.calc_velocity(electric_field, material)
+            self.calc_velocity(electric_field, delta_t)
 
 
 if __name__ == '__main__':
     particle = Particle(1, 1, 1, 10)
     mat = Material(1, 1, 1)
     e_field = Vector2(1, 0)
-    particle.calc_velocity(e_field, mat)
+    particle.calc_velocity(e_field, 1)
     box = Bbox2(1, 2, 3, 4)
     particle.set_init_position(box)
     print('ei')
