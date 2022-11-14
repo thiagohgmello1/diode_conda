@@ -19,12 +19,26 @@ class Topology:
 
     @classmethod
     def from_file(cls, file_name: str, scale: float):
+        """
+        Create topology from file
+
+        :param file_name: file name
+        :param scale: scale dimension
+        :return: class instantiation
+        """
         topologies = XMLReader(file_name)
         return cls(topologies.get_geometries(), scale)
 
 
     @classmethod
     def from_points(cls, points: list[list], scale: float):
+        """
+        Create topology from specified points
+
+        :param points: geometry vertices
+        :param scale: scale dimension
+        :return: class instantiation
+        """
         topologies = list()
         for geometry in points:
             topologies.append(sg.Polygon(cls.create_points(geometry)))
@@ -32,6 +46,12 @@ class Topology:
 
 
     def contains(self, point: sg.Point2):
+        """
+        Check if point is inside geometry
+
+        :param point: point to be checked
+        :return: boolean indicating if point is or is not inside geometry
+        """
         is_inside = self.topologies.locate(point)
         if is_inside:
             return True
@@ -40,6 +60,11 @@ class Topology:
 
 
     def get_boundaries_polygons(self):
+        """
+        Get all polygons boundaries and divide them into internal and external boundaries
+
+        :return: None
+        """
         external_boundaries = list()
         internal_boundaries = list()
         for polygon in self.topologies.polygons:
@@ -51,6 +76,12 @@ class Topology:
 
 
     def diff_polygon(self, polygon: sg.Polygon):
+        """
+        Subtract polygon from topology
+
+        :param polygon: polygon to be subtracted
+        :return: None
+        """
         polygon = self.set_orientation([polygon])
         for pol in polygon:
             self.topologies = self.topologies.difference(pol)
@@ -59,6 +90,12 @@ class Topology:
 
 
     def union_polygon(self, polygon: sg.Polygon):
+        """
+        Add polygon to topology
+
+        :param polygon: polygon to be added
+        :return: None
+        """
         polygon = self.set_orientation([polygon])
         for pol in polygon:
             self.topologies = self.topologies.union(pol)
@@ -67,6 +104,11 @@ class Topology:
 
 
     def get_segments(self):
+        """
+        Get all geometry segments
+
+        :return: None
+        """
         def extract_segments(pols):
             segments = list()
             for pol in pols:
@@ -84,7 +126,14 @@ class Topology:
         self.segments['external'] = external_segments
 
 
-    def intersection_points(self, segment_to_compare: sg.Segment2, actual_particle_vec: sg.Vector2):
+    def intersection_points(self, segment_to_compare: sg.Segment2, actual_particle_vec: sg.Vector2) -> list:
+        """
+        Define all possible intersection points
+
+        :param segment_to_compare: line segment eventually travelled by particle
+        :param actual_particle_vec: actual particle position vector
+        :return: all possible intersection points
+        """
         actual_pos = vec_to_point(actual_particle_vec)
         intersection_points = list()
         for segments in self.segments.values():
@@ -96,7 +145,12 @@ class Topology:
 
 
     @staticmethod
-    def set_orientation(polygons: list[sg.Polygon]):
+    def set_orientation(polygons: list[sg.Polygon]) -> list:
+        """
+        Set polygons orientation
+        :param polygons: polygons to be standardized
+        :return: list of standardized polygons
+        """
         for polygon in polygons:
             if polygon.orientation() == -1:
                 polygon.reverse_orientation()
@@ -104,7 +158,12 @@ class Topology:
 
 
     @staticmethod
-    def create_points(points_list):
+    def create_points(points_list) -> list:
+        """
+        Create points from list of floats
+        :param points_list: list of float points
+        :return: list of Point2
+        """
         points = list()
         for point in points_list:
             point = [float(p) for p in point]

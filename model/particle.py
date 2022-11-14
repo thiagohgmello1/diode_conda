@@ -17,29 +17,60 @@ class Particle:
         self.velocity = self.fermi_velocity
         self.position = position
         self.positions = list()
-
-
-    def calc_acceleration(self, electric_field: Vector2):
-        self.acceleration = electric_field * (-1 * self.charge / self.mass)
-
-
-    def set_fermi_velocity(self):
-        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
-
-
-    def calc_velocity(self, electric_field: Vector2, delta_t: float):
-        self.calc_acceleration(electric_field)
-        self.velocity += self.acceleration * delta_t
+        self.travelling_time = 0
 
 
     def set_init_position(self, bbox: Bbox2):
+        """
+        Set particle initial position into box bbox
+
+        :param bbox: box size
+        :return: None
+        """
         min_range = (bbox.xmin(), bbox.ymin())
         max_range = (bbox.xmax(), bbox.ymax())
         self.position = random_vec(min_value=min_range, max_value=max_range, is_normalized=False)
 
 
-    def calc_position(self, time: float):
-        next_pos = self.position + self.velocity * time
+    def set_fermi_velocity(self):
+        """
+        Set particle random Fermi velocity
+
+        :return: None
+        """
+        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
+
+
+    def calc_acceleration(self, electric_field: Vector2):
+        """
+        Calculate particle acceleration
+
+        :param electric_field: applied electric field in particle position
+        :return: None
+        """
+        self.acceleration = electric_field * (-1 * self.charge / self.mass)
+
+
+    def calc_velocity(self, electric_field: Vector2, delta_t: float):
+        """
+        Calculate particle velocity after delta_t
+
+        :param electric_field: applied electric field in particle position
+        :param delta_t: time interval
+        :return: None
+        """
+        self.calc_acceleration(electric_field)
+        self.velocity += self.acceleration * delta_t
+
+
+    def calc_position(self, delta_t: float):
+        """
+        Calculate next particle position according cinematic equations for uniformly varied motion
+
+        :param delta_t: time interval
+        :return: line segment that connect initial and final particle positions
+        """
+        next_pos = self.position + self.velocity * delta_t + (self.acceleration * delta_t ** 2) / 2
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)
@@ -47,11 +78,27 @@ class Particle:
 
 
     def time_to_collision(self, position: Point2, path: Segment2):
+        """
+        Calculate time interval until defined collision
+
+        :param position: particle position
+        :param path: crossed line segment
+        :return: time until collision
+        """
         pos = Segment2(path[0], position)
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
     def move(self, normal_vec: Vector2, delta_t: float, electric_field: Vector2, relaxation: bool):
+        """
+        Move particle according time interval
+
+        :param normal_vec: boundary normal vector
+        :param delta_t: time interval
+        :param electric_field: particle applied electric field
+        :param relaxation: relaxation event
+        :return: None
+        """
         self.position = self.position + self.velocity * delta_t
         self.velocity = mirror(self.velocity, normal_vec)
         if relaxation:

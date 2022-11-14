@@ -33,8 +33,14 @@ class System:
         self.max_time_steps = max_time_steps
 
 
-    def set_init_positions(self):
+    def set_particles_parameters(self):
+        """
+        Set particles initial parameters
+
+        :return: None
+        """
         for particle in self.particles:
+            particle.set_fermi_velocity()
             particle.set_init_position(self.topology.bbox)
             init_pos = vec_to_point(particle.position)
             while not self.topology.contains(init_pos):
@@ -42,7 +48,16 @@ class System:
                 init_pos = vec_to_point(particle.position)
 
 
-    def relaxation_event(self, delta_t: float, collision_segment: Segment2):
+    def relaxation_event(self, delta_t: float, collision_segment: Segment2) -> (bool, float, Segment2):
+        """
+        Define if relaxation event occur into time interval
+
+        :param delta_t: time interval
+        :param collision_segment: segment where particle will collide
+        :return relaxation: boolean indicating if there is or there is not relaxation event
+        :return delta_t: time interval
+        :return collision_segment: segment where particle will collide if there is no relaxation event
+        """
         relax_time = self.material.relax_time
         relax_probability = 1 - np.exp(-delta_t / relax_time)
         relaxation = decision(relax_probability)
@@ -53,6 +68,12 @@ class System:
 
 
     def simulate_drude(self, particle: Particle):
+        """
+        Simulate Drude event. Simulation can be executed in GPU or multithreading CPU
+
+        :param particle: particle to be simulated
+        :return: None
+        """
         collisions = 0
         time_steps = 0
         remaining_time = self.time
@@ -87,7 +108,17 @@ class System:
             intersection_points: list[Point2],
             particle: Particle,
             traveled_path: Segment2
-    ):
+    ) -> (float, Segment2):
+        """
+        Define closer intersection between particle path and geometries boundaries
+
+        :param remaining_time: available travelling time
+        :param intersection_points: list of points where collision can occur
+        :param particle: respective moving particle
+        :param traveled_path: corresponding particle path
+        :return lowest_time_to_collision: lowest time to collision
+        :return lowest_collision_segment: collided segment
+        """
         lowest_time_to_collision = remaining_time
         lowest_collision_segment = None
         for intersection_point, collision_element in intersection_points:
@@ -104,7 +135,7 @@ if __name__ == '__main__':
     pol = Topology.from_file('../tests/test2.svg', 1e-9)
     e_field = Vector2(1, 0)
     system = System(particles_list, pol, mat, e_field, 100)
-    system.set_init_positions()
+    system.set_particles_parameters()
     system.simulate_drude(particles_list[0])
     draw(system.topology.topologies)
     if TEST:
