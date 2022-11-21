@@ -69,7 +69,7 @@ class System:
 
     def simulate_drude(self, particle: Particle):
         """
-        Simulate Drude event. Simulation can be executed in GPU or multithreading CPU
+        Simulate Drude event. Simulation can be executed in GPU or single-multithreading CPU
 
         :param particle: particle to be simulated
         :return: None
@@ -80,9 +80,11 @@ class System:
         condition = False
         while not condition:
             traveled_path = particle.calc_position(remaining_time)
-            intersection_points = self.topology.intersection_points(traveled_path, particle.position)
-            if len(intersection_points) > 0:
+            if not self.topology.contains(traveled_path[1]):
+                intersection_points = self.topology.intersection_points(traveled_path, particle.position)
                 collisions += 1
+            else:
+                intersection_points = list()
             lowest_time_to_collision, lowest_collision_segment = self.calc_closer_intersection(
                 remaining_time, intersection_points, particle, traveled_path
             )

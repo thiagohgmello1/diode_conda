@@ -70,7 +70,7 @@ class Particle:
         :param delta_t: time interval
         :return: line segment that connect initial and final particle positions
         """
-        next_pos = self.position + self.velocity * delta_t + (self.acceleration * delta_t ** 2) / 2
+        next_pos = self.position + self.velocity * delta_t
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)
