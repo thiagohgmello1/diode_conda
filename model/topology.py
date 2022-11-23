@@ -23,7 +23,7 @@ class Topology:
         Create topology from file
 
         :param file_name: file name
-        :param scale: scale dimension
+        :param scale: scale dimension (ex.: 1e-6; 1e-9)
         :return: class instantiation
         """
         topologies = XMLReader(file_name)
@@ -36,7 +36,7 @@ class Topology:
         Create topology from specified points
 
         :param points: geometry vertices
-        :param scale: scale dimension
+        :param scale: scale dimension (ex.: 1e-6; 1e-9)
         :return: class instantiation
         """
         topologies = list()
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     D = [120, 80]
     test_point = sg.Point2(0, 0)
     test_segment = sg.Segment2(sg.Point2(110, 80), sg.Point2(80, 70))
-    polygon_1 = Topology.from_file('../tests/test2.svg', 1e-9)
+    polygon_1 = Topology.from_file('../tests/test.svg', 1e-9)
     polygon_2 = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
     polygon_2.bbox()
     print(polygon_1.contains(test_point))

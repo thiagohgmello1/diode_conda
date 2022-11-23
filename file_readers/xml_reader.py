@@ -10,11 +10,13 @@ SVG_D_ATTR = r'(M|L|H|V|C|S|Q|T|A|Z)'
 class XMLReader:
     def __init__(self, file_name: str):
         self.file_name = file_name
+        self.min_pos = list()
 
 
     def get_general_polygons(self):
         polygons = list()
         polygons_attributes = self.get_polygons_attributes()
+        self.get_geometry_limits(polygons_attributes)
         for polygon in polygons_attributes:
             polygons.append(sg.Polygon(self.create_points(polygon)))
         return polygons
@@ -25,7 +27,7 @@ class XMLReader:
         paths = [
             re.split(SVG_D_ATTR, path.getAttribute('d')) for path in document.getElementsByTagName('path')
         ]
-
+        paths.append(self.get_rectangles())
         polygons_attributes = self.create_attributes(paths)
         document.unlink()
         return polygons_attributes
@@ -39,20 +41,25 @@ class XMLReader:
             y_0 = float(rectangle.getAttribute('y'))
             x_1 = x_0 + float(rectangle.getAttribute('width'))
             y_1 = y_0 + float(rectangle.getAttribute('height'))
-            p_00 = sg.Point2(x_0, y_0)
-            p_01 = sg.Point2(x_0, y_1)
-            p_10 = sg.Point2(x_1, y_0)
-            p_11 = sg.Point2(x_1, y_1)
-            rectangles.append(sg.Polygon([p_00, p_01, p_11, p_10]))
+            value = ['', 'M', f' {x_0},{y_0} ', 'V', f'{y_1}', 'H', f'{x_1}', 'V', f'{y_0}', 'Z', '']
+            rectangles.extend(value)
+
         document.unlink()
         return rectangles
 
 
     def get_geometries(self):
         polygons = self.get_general_polygons()
-        rectangles = self.get_rectangles()
-        polygons.extend(rectangles)
         return polygons
+
+
+    def get_geometry_limits(self, list_of_polygons):
+        def get_min(elements, pos):
+            return min(
+                [min(polygon, key=lambda x: float(x[pos]))[pos] for polygon in elements], key=lambda x: float(x)
+            )
+        self.min_pos.append(float(get_min(list_of_polygons, 0)))
+        self.min_pos.append(float(get_min(list_of_polygons, 1)))
 
 
     @staticmethod
@@ -71,10 +78,9 @@ class XMLReader:
         return polygons
 
 
-    @staticmethod
-    def create_points(points_list):
+    def create_points(self, points_list):
         points = list()
         for point in points_list:
-            point = [float(p) for p in point]
+            point = [float(point[pos]) - self.min_pos[pos] for pos in range(2)]
             points.append(sg.Point2(point[0], point[1]))
         return points
