@@ -128,22 +128,21 @@ class Topology:
         self.segments['external'] = external_segments
 
 
-    def intersection_points(self, segment_to_compare: sg.Segment2, actual_particle_vec: sg.Vector2) -> list:
+    def intersection_points(self, traveled_path: sg.Segment2) -> list:
         """
         Define all possible intersection points
 
-        :param segment_to_compare: line segment eventually travelled by particle
-        :param actual_particle_vec: actual particle position vector
+        :param traveled_path: line segment eventually travelled by particle
         :return: all possible intersection points
         """
-        actual_pos = vec_to_point(actual_particle_vec)
-        intersection_points = list()
+        actual_pos = vec_to_point(traveled_path[0])
+        intersec_points = list()
         for segments in self.segments.values():
             for segment in segments:
-                intersection_point = sg.intersection(segment, segment_to_compare)
+                intersection_point = sg.intersection(segment, traveled_path)
                 if intersection_point and not equal(intersection_point, actual_pos):
-                    intersection_points.append([intersection_point, segment])
-        return intersection_points
+                    intersec_points.append([intersection_point, segment])
+        return intersec_points
 
 
     @staticmethod

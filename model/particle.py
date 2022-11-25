@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from skgeom.draw import draw
 from material import Material
 from utils.probabilistic_operations import random_vec
@@ -20,8 +22,7 @@ class Particle:
         self.mass = effective_mass * density
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
-        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
-        self.velocity = self.fermi_velocity
+        self.velocity = None
         self.position = position
         self.positions = list()
 
@@ -35,7 +36,7 @@ class Particle:
         """
         min_range = (bbox.xmin(), bbox.ymin())
         max_range = (bbox.xmax(), bbox.ymax())
-        self.position = random_vec(min_value=min_range, max_value=max_range, is_normalized=False)
+        self.position = Vector2(*random_vec(min_value=min_range, max_value=max_range, is_normalized=False))
 
 
     def set_fermi_velocity(self):
@@ -44,7 +45,7 @@ class Particle:
 
         :return: None
         """
-        self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
+        self.velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
 
 
     def calc_acceleration(self, electric_field: Vector2):
@@ -76,7 +77,7 @@ class Particle:
         :param delta_t: time interval
         :return: next possible position and line segment that connect initial and final particle positions
         """
-        next_pos = self.position + self.velocity * delta_t + (self.acceleration * delta_t ** 2) / 2
+        next_pos = self.position + self.velocity * delta_t
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)

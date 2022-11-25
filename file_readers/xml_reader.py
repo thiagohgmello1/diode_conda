@@ -27,7 +27,9 @@ class XMLReader:
         paths = [
             re.split(SVG_D_ATTR, path.getAttribute('d')) for path in document.getElementsByTagName('path')
         ]
-        paths.append(self.get_rectangles())
+        rectangles = self.get_rectangles()
+        if len(rectangles):
+            paths.append(rectangles)
         polygons_attributes = self.create_attributes(paths)
         document.unlink()
         return polygons_attributes

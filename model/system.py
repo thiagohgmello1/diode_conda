@@ -60,6 +60,7 @@ class System:
             particle.set_fermi_velocity()
             particle.set_init_position(self.topology.bbox)
             init_pos = vec_to_point(particle.position)
+
             while not self.topology.contains(init_pos):
                 particle.set_init_position(self.topology.bbox)
                 init_pos = vec_to_point(particle.position)
@@ -75,12 +76,13 @@ class System:
         :return delta_t: time interval
         :return collision_segment: segment where particle will collide if there is no relaxation event
         """
-        relax_time = self.material.relax_time
-        relax_probability = 1 - np.exp(-delta_t / relax_time)
+        relax_probability = 1 - np.exp(-delta_t / self.material.relax_time)
         relaxation = decision(relax_probability)
+
         if relaxation:
             delta_t = random_number(0, delta_t)
             collision_segment = None
+
         return relaxation, delta_t, collision_segment
 
 
@@ -92,16 +94,19 @@ class System:
         :return: None
         """
         simulated_time = 0
-        delta_t = 0
         condition = self.stop_condition(simulated_time)
+
         while not condition:
-            particle.calc_acceleration(self.e_field)
+            particle.calc_velocity(self.e_field, self.delta_t)
             traveled_path = particle.calc_next_position(self.delta_t)
-            if not self.topology.contains(traveled_path[1]):
-                intersection_points = self.topology.intersection_points(traveled_path, particle.position)
+            topology_contains_next_point = self.topology.contains(traveled_path[1])
+
+            if not topology_contains_next_point:
+                intersection_points = self.topology.intersection_points(traveled_path)
                 self.collisions += 1
             else:
                 intersection_points = list()
+
             lowest_time_to_collision, lowest_collision_segment = self.calc_closer_intersection(
                 intersection_points, particle, traveled_path
             )
@@ -109,15 +114,19 @@ class System:
             relaxation, lowest_time_to_collision, lowest_collision_segment = self.relaxation_event(
                 lowest_time_to_collision, lowest_collision_segment
             )
-            if TEST:
-                particle.positions.append(particle_pos)
             segment_normal_vec = calc_normal(lowest_collision_segment, particle_pos)
-            particle.move(
-                segment_normal_vec, lowest_time_to_collision, self.e_field, self.material, relaxation
-            )
-            delta_t -= lowest_time_to_collision
+            particle.move(segment_normal_vec, lowest_time_to_collision, self.e_field, relaxation)
+
+            if relaxation:
+                particle.calc_velocity(self.e_field, lowest_time_to_collision)
+                if not topology_contains_next_point:
+                    self.collisions -= 1
+
+            simulated_time += lowest_time_to_collision
             self.time_steps += 1
             condition = self.stop_condition(simulated_time)
+            if TEST:
+                particle.positions.append(particle_pos)
 
 
     def stop_condition(self, simulated_time) -> bool:
@@ -130,6 +139,7 @@ class System:
         time_steps_condition = self.time_steps > self.max_time_steps
         collisions_condition = self.collisions > self.max_collisions
         time_condition = np.isclose(simulated_time, self.max_time_simulation)
+
         return time_steps_condition or collisions_condition or time_condition
 
 
@@ -155,15 +165,21 @@ class System:
             if time_to_collision < lowest_time_to_collision:
                 lowest_time_to_collision = time_to_collision
                 lowest_collision_segment = collision_element
+
         return lowest_time_to_collision, lowest_collision_segment
 
 
 if __name__ == '__main__':
     mat = Material(1, 1, 1)
-    particles_list = [Particle(1, 1, 1, 10)]
-    pol = Topology.from_file('../tests/test2.svg', 1e-9)
-    e_field = Vector2(1, 0)
-    system = System(particles_list, pol, mat, e_field, 100)
+    particles_list = [Particle(1, 1, 1)]
+    if TEST:
+        particles_list[0].charge = 1
+        particles_list[0].mass = 1
+        mat.carrier_concentration = 1
+        mat.effective_mass = 1
+    pol = Topology.from_file('../tests/test3.svg', 1)
+    e_field = Vector2(5, 0)
+    system = System(particles_list, pol, mat, e_field, 10)
     system.set_particles_parameters()
     system.simulate_drude(particles_list[0])
     draw(system.topology.topologies)
