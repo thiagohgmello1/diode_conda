@@ -20,15 +20,32 @@ class System:
             topology: Topology,
             material: Material,
             electric_field: Vector2,
-            delta_t: float = 1, # remover
-            max_collisions: float = 1e6,
-            max_time_steps: float = 1e4,
+            delta_t: float,
+            max_time_simulation: float = np.inf,
+            max_collisions: float = np.inf,
+            max_time_steps: float = np.inf,
     ):
+        """
+        Create system to be simulated (topology + particles + materials + etc.)
+
+        :param particles: particles to be simulated
+        :param topology: desired topology
+        :param material: material to topology
+        :param electric_field: defined or calculated electric field created by applied voltage in topology
+        :param delta_t: time step
+        :param max_collisions: defined maximum accepted collisions. Stop criteria
+        :param max_time_steps: defined maximum time steps. Stop criteria
+        """
         self.particles = particles
         self.topology = topology
         self.material = material
         self.e_field = electric_field
-        self.time = delta_t
+        self.delta_t = delta_t
+
+        self.collisions = 0
+        self.time_steps = 0
+
+        self.max_time_simulation = max_time_simulation
         self.max_collisions = max_collisions
         self.max_time_steps = max_time_steps
 
@@ -50,7 +67,7 @@ class System:
 
     def relaxation_event(self, delta_t: float, collision_segment: Segment2) -> (bool, float, Segment2):
         """
-        Define if relaxation event occur into time interval
+        Define if relaxation event occur in time interval
 
         :param delta_t: time interval
         :param collision_segment: segment where particle will collide
@@ -74,19 +91,19 @@ class System:
         :param particle: particle to be simulated
         :return: None
         """
-        collisions = 0
-        time_steps = 0
-        remaining_time = self.time
-        condition = False
+        simulated_time = 0
+        delta_t = 0
+        condition = self.stop_condition(simulated_time)
         while not condition:
-            traveled_path = particle.calc_position(remaining_time)
+            particle.calc_acceleration(self.e_field)
+            traveled_path = particle.calc_next_position(self.delta_t)
             if not self.topology.contains(traveled_path[1]):
                 intersection_points = self.topology.intersection_points(traveled_path, particle.position)
-                collisions += 1
+                self.collisions += 1
             else:
                 intersection_points = list()
             lowest_time_to_collision, lowest_collision_segment = self.calc_closer_intersection(
-                remaining_time, intersection_points, particle, traveled_path
+                intersection_points, particle, traveled_path
             )
             particle_pos = Point2(particle.position.x(), particle.position.y())
             relaxation, lowest_time_to_collision, lowest_collision_segment = self.relaxation_event(
@@ -98,15 +115,26 @@ class System:
             particle.move(
                 segment_normal_vec, lowest_time_to_collision, self.e_field, self.material, relaxation
             )
-            remaining_time -= lowest_time_to_collision
-            time_steps += 1
-            condition = \
-                np.isclose(remaining_time, 0) or collisions > self.max_collisions or time_steps > self.max_time_steps
+            delta_t -= lowest_time_to_collision
+            self.time_steps += 1
+            condition = self.stop_condition(simulated_time)
 
 
-    @staticmethod
+    def stop_condition(self, simulated_time) -> bool:
+        """
+        Calculate if any stop condition was met
+
+        :param simulated_time: total simulated time for specific particle
+        :return: stop condition
+        """
+        time_steps_condition = self.time_steps > self.max_time_steps
+        collisions_condition = self.collisions > self.max_collisions
+        time_condition = np.isclose(simulated_time, self.max_time_simulation)
+        return time_steps_condition or collisions_condition or time_condition
+
+
     def calc_closer_intersection(
-            remaining_time,
+            self,
             intersection_points: list[Point2],
             particle: Particle,
             traveled_path: Segment2
@@ -114,14 +142,13 @@ class System:
         """
         Define closer intersection between particle path and geometries boundaries
 
-        :param remaining_time: available travelling time
         :param intersection_points: list of points where collision can occur
         :param particle: respective moving particle
         :param traveled_path: corresponding particle path
         :return lowest_time_to_collision: lowest time to collision
         :return lowest_collision_segment: collided segment
         """
-        lowest_time_to_collision = remaining_time
+        lowest_time_to_collision = self.delta_t
         lowest_collision_segment = None
         for intersection_point, collision_element in intersection_points:
             time_to_collision = particle.time_to_collision(intersection_point, traveled_path)

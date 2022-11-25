@@ -7,6 +7,12 @@ from file_readers.xml_reader import XMLReader
 
 class Topology:
     def __init__(self, topologies: list[sg.Polygon], scale: float):
+        """
+        Create simulated topology
+
+        :param topologies: list of polygon that form desired topology to be simulated
+        :param scale: length scale (ex.: 10e-9 for nanometer)
+        """
         topologies = self.set_orientation(topologies)
         self.bbox = None
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
@@ -52,11 +58,7 @@ class Topology:
         :param point: point to be checked
         :return: boolean indicating if point is or is not inside geometry
         """
-        is_inside = self.topologies.locate(point)
-        if is_inside:
-            return True
-        else:
-            return False
+        return self.topologies.locate(point)
 
 
     def get_boundaries_polygons(self):

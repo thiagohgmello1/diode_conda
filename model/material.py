@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.constants import pi, h, electron_mass, epsilon_0, e
+from scipy.constants import pi, h, epsilon_0, e
 
 
 class Material:
@@ -38,10 +38,10 @@ class Material:
 
     def _calc_effective_mass(self):
         """
-        Calculate relative effective particle mass
-        :return: relative effective particle mass
+        Calculate relative effective particle mass. From E=m_{e}c_{*}^2
+        :return: effective particle mass
         """
-        return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * electron_mass * self.scalar_fermi_velocity)
+        return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity)
 
 
     def _calc_relax_time(self, resistivity: float):

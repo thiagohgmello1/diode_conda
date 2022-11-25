@@ -1,30 +1,36 @@
 from skgeom.draw import draw
 from material import Material
 from utils.probabilistic_operations import random_vec
-from scipy.constants import electron_mass, elementary_charge
+from scipy.constants import elementary_charge
 from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
 
 class Particle:
-    def __init__(self, density: float, effective_mass: float, size: float, fermi_velocity: float, position=None):
-        self.charge = elementary_charge * density
-        self.mass = electron_mass * effective_mass * density
-        self.size = size
+    def __init__(self, density: float, effective_mass: float, fermi_velocity: float, position=None):
+        """
+        Particle that will be simulated
+
+        :param density: density of particles (electrons/particle)
+        :param effective_mass: effective electron mass according material specifications
+        :param fermi_velocity: calculated scalar Fermi velocity
+        :param position: initial position (if desired to define non random initial position)
+        """
+        self.charge = (-1) * elementary_charge * density
+        self.mass = effective_mass * density
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
         self.fermi_velocity = random_vec() * self.scalar_fermi_velocity
         self.velocity = self.fermi_velocity
         self.position = position
         self.positions = list()
-        self.travelling_time = 0
 
 
     def set_init_position(self, bbox: Bbox2):
         """
         Set particle initial position into box bbox
 
-        :param bbox: box size
+        :param bbox: box size responsible to limit initial possible positions
         :return: None
         """
         min_range = (bbox.xmin(), bbox.ymin())
@@ -48,7 +54,7 @@ class Particle:
         :param electric_field: applied electric field in particle position
         :return: None
         """
-        self.acceleration = electric_field * (-1 * self.charge / self.mass)
+        self.acceleration = electric_field * (self.charge / self.mass)
 
 
     def calc_velocity(self, electric_field: Vector2, delta_t: float):
@@ -63,14 +69,14 @@ class Particle:
         self.velocity += self.acceleration * delta_t
 
 
-    def calc_position(self, delta_t: float):
+    def calc_next_position(self, delta_t: float) -> (Vector2, Segment2):
         """
         Calculate next particle position according cinematic equations for uniformly varied motion
 
         :param delta_t: time interval
-        :return: line segment that connect initial and final particle positions
+        :return: next possible position and line segment that connect initial and final particle positions
         """
-        next_pos = self.position + self.velocity * delta_t
+        next_pos = self.position + self.velocity * delta_t + (self.acceleration * delta_t ** 2) / 2
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)
@@ -99,6 +105,7 @@ class Particle:
         :param relaxation: relaxation event
         :return: None
         """
+        self.calc_acceleration(electric_field)
         self.position = self.position + self.velocity * delta_t
         self.velocity = mirror(self.velocity, normal_vec)
         if relaxation:
