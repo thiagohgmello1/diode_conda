@@ -1,11 +1,10 @@
 import numpy as np
 
-from skgeom import Vector2, Point2, Segment2
-
 from skgeom.draw import draw
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
+from skgeom import Vector2, Point2, Segment2
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
@@ -31,9 +30,9 @@ class System:
         :param particles: particles to be simulated
         :param topology: desired topology
         :param material: material to topology
-        :param electric_field: defined or calculated electric field created by applied voltage in topology
+        :param electric_field: defined or calculated electric field created by applied voltage in topology [V/m]
         :param max_collisions: defined maximum accepted collisions. Stop criteria
-        :param max_time_steps: defined maximum time steps. Stop criteria
+        :param max_time_steps: defined maximum time steps. Stop criteria [s]
         """
         self.particles = particles
         self.topology = topology
@@ -54,12 +53,12 @@ class System:
         """
         Set simulation time step
 
-        :param time_step: input time step (if desired)
+        :param time_step: input time step representing a fraction of relaxation time (if desired)
         :return: simulation time step
         """
         if not time_step:
             return self.relax_time / 20
-        return time_step
+        return self.relax_time / time_step
 
 
     def set_particles_parameters(self):
@@ -215,7 +214,7 @@ if __name__ == '__main__':
         particles_list[0].mass = 1
         mat.carrier_concentration = 1
         mat.effective_mass = 1
-    pol = Topology.from_file('../tests/test.svg', 1)
+    pol = Topology.from_file('../tests/test3.svg', 1)
     e_field = Vector2(2, 0)
     system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=22)
     system.set_particles_parameters()

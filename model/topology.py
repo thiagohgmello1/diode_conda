@@ -11,7 +11,7 @@ class Topology:
         Create simulated topology
 
         :param topologies: list of polygon that form desired topology to be simulated
-        :param scale: length scale (ex.: 10e-9 for nanometer)
+        :param scale: length scale in meters (ex.: 10e-9 for nanometer)
         """
         topologies = self.set_orientation(topologies)
         self.bbox = None
@@ -149,6 +149,7 @@ class Topology:
     def set_orientation(polygons: list[sg.Polygon]) -> list:
         """
         Set polygons orientation
+
         :param polygons: polygons to be standardized
         :return: list of standardized polygons
         """
@@ -162,6 +163,7 @@ class Topology:
     def create_points(points_list) -> list:
         """
         Create points from list of floats
+
         :param points_list: list of float points
         :return: list of Point2
         """
