@@ -62,6 +62,7 @@ class System:
             while not self.topology.contains(init_pos):
                 particle.set_init_position(self.topology.bbox)
                 init_pos = vec_to_point(particle.position)
+            particle.positions.append(init_pos)
 
 
     def relaxation_event(
@@ -90,6 +91,13 @@ class System:
         return relaxation, delta_t, collision_segment
 
 
+    def calc_particle_possible_conditions(self, particle):
+        particle_acceleration = particle.calc_acceleration(self.e_field)
+        particle_velocity = particle_acceleration * self.relax_time + particle.velocity
+        particle_traveled_path = particle.calc_next_position(particle_velocity, self.relax_time)
+        return particle_acceleration, particle_velocity, particle_traveled_path
+
+
     def simulate_drude(self, particle: Particle):
         """
         Simulate Drude event. Simulation can be executed in GPU or single-multithreading CPU
@@ -102,9 +110,7 @@ class System:
         cumulative_time = 0
 
         while not condition:
-            particle_acceleration = particle.calc_acceleration(self.e_field)
-            particle_velocity = particle_acceleration * self.relax_time + particle.velocity
-            traveled_path = particle.calc_next_position(particle_velocity, self.relax_time)
+            particle_acceleration, particle_velocity, traveled_path = self.calc_particle_possible_conditions(particle)
             topology_contains_next_point = self.topology.contains(traveled_path[1])
 
             if not topology_contains_next_point:
@@ -185,14 +191,14 @@ class System:
 
 
 if __name__ == '__main__':
-    mat = Material(1, 1, 10)
+    mat = Material(10, 1, 10)
     particles_list = [Particle(1, 1, 4)]
     if TEST:
         particles_list[0].charge = 1
         particles_list[0].mass = 1
         mat.carrier_concentration = 1
         mat.effective_mass = 1
-    pol = Topology.from_file('../tests/test2.svg', 1)
+    pol = Topology.from_file('../tests/test3.svg', 1)
     e_field = Vector2(2, 0)
     system = System(particles_list, pol, mat, e_field, max_collisions=20)
     system.set_particles_parameters()

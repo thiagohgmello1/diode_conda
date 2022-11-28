@@ -58,16 +58,6 @@ class Particle:
         acceleration = electric_field * (self.charge / self.mass)
         return acceleration
 
-    # Remove method
-    def set_velocity(self, delta_t: float):
-        """
-        Calculate particle velocity after delta_t
-
-        :param delta_t: time interval
-        :return: None
-        """
-        self.velocity += self.acceleration * delta_t
-
 
     def calc_next_position(self, velocity, delta_t: float) -> (Vector2, Segment2):
         """
@@ -109,9 +99,10 @@ class Particle:
         self.acceleration = self.calc_acceleration(electric_field)
         self.velocity += self.acceleration * delta_t
         self.position = self.position + self.velocity * delta_t
-        self.velocity = mirror(self.velocity, normal_vec)
         if relaxation:
             self.velocity = mirror(self.velocity, Vector2(*random_vec()))
+        else:
+            self.velocity = mirror(self.velocity, normal_vec)
 
 
 if __name__ == '__main__':
@@ -119,7 +110,6 @@ if __name__ == '__main__':
     mat = Material(1, 1, 1)
     e_field = Vector2(1, 0)
     particle.calc_acceleration(e_field)
-    particle.set_velocity(1)
     box = Bbox2(1, 2, 3, 4)
     particle.set_init_position(box)
     print('ei')
