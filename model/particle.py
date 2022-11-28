@@ -48,36 +48,36 @@ class Particle:
         self.velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
 
 
-    def calc_acceleration(self, electric_field: Vector2):
+    def calc_acceleration(self, electric_field: Vector2) -> Vector2:
         """
         Calculate particle acceleration
 
         :param electric_field: applied electric field in particle position
-        :return: None
+        :return: possible new acceleration
         """
-        self.acceleration = electric_field * (self.charge / self.mass)
+        acceleration = electric_field * (self.charge / self.mass)
+        return acceleration
 
-
-    def calc_velocity(self, electric_field: Vector2, delta_t: float):
+    # Remove method
+    def set_velocity(self, delta_t: float):
         """
         Calculate particle velocity after delta_t
 
-        :param electric_field: applied electric field in particle position
         :param delta_t: time interval
         :return: None
         """
-        self.calc_acceleration(electric_field)
         self.velocity += self.acceleration * delta_t
 
 
-    def calc_next_position(self, delta_t: float) -> (Vector2, Segment2):
+    def calc_next_position(self, velocity, delta_t: float) -> (Vector2, Segment2):
         """
         Calculate next particle position according cinematic equations for uniformly varied motion
 
+        :param velocity: particle velocity in time interval
         :param delta_t: time interval
         :return: next possible position and line segment that connect initial and final particle positions
         """
-        next_pos = self.position + self.velocity * delta_t
+        next_pos = self.position + velocity * delta_t
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)
@@ -106,19 +106,20 @@ class Particle:
         :param relaxation: relaxation event
         :return: None
         """
-        self.calc_acceleration(electric_field)
+        self.acceleration = self.calc_acceleration(electric_field)
+        self.velocity += self.acceleration * delta_t
         self.position = self.position + self.velocity * delta_t
         self.velocity = mirror(self.velocity, normal_vec)
         if relaxation:
-            self.set_fermi_velocity()
-            self.calc_velocity(electric_field, delta_t)
+            self.velocity = mirror(self.velocity, Vector2(*random_vec()))
 
 
 if __name__ == '__main__':
     particle = Particle(1, 1, 1, 10)
     mat = Material(1, 1, 1)
     e_field = Vector2(1, 0)
-    particle.calc_velocity(e_field, 1)
+    particle.calc_acceleration(e_field)
+    particle.set_velocity(1)
     box = Bbox2(1, 2, 3, 4)
     particle.set_init_position(box)
     print('ei')
