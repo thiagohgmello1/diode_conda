@@ -86,18 +86,15 @@ class Particle:
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
-    def move(self, normal_vec: Vector2, delta_t: float, electric_field: Vector2, relaxation: bool):
+    def move(self, normal_vec: Vector2, delta_t: float, relaxation: bool):
         """
         Move particle according time interval
 
         :param normal_vec: boundary normal vector
         :param delta_t: time interval
-        :param electric_field: particle applied electric field
         :param relaxation: relaxation event
         :return: None
         """
-        self.acceleration = self.calc_acceleration(electric_field)
-        self.velocity += self.acceleration * delta_t
         self.position = self.position + self.velocity * delta_t
         if relaxation:
             self.velocity = mirror(self.velocity, Vector2(*random_vec()))

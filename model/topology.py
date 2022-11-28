@@ -136,13 +136,13 @@ class Topology:
         :return: all possible intersection points
         """
         actual_pos = vec_to_point(traveled_path[0])
-        intersec_points = list()
+        intersection_points = list()
         for segments in self.segments.values():
             for segment in segments:
                 intersection_point = sg.intersection(segment, traveled_path)
                 if intersection_point and not equal(intersection_point, actual_pos):
-                    intersec_points.append([intersection_point, segment])
-        return intersec_points
+                    intersection_points.append([intersection_point, segment])
+        return intersection_points
 
 
     @staticmethod
