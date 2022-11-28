@@ -51,7 +51,7 @@ class Topology:
         return cls(topologies, scale)
 
 
-    def contains(self, point: sg.Point2):
+    def contains(self, point: sg.Point2) -> bool:
         """
         Check if point is inside geometry
 

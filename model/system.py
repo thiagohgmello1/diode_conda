@@ -49,7 +49,7 @@ class System:
         self.max_time_steps = max_time_steps
 
 
-    def _set_time_step(self, time_step):
+    def _set_time_step(self, time_step) -> float:
         """
         Set simulation time step
 
@@ -104,7 +104,7 @@ class System:
         return relaxation, delta_t, collision_segment
 
 
-    def calc_particle_possible_conditions(self, particle):
+    def calc_particle_possible_conditions(self, particle) -> Segment2:
         particle.acceleration = particle.calc_acceleration(self.e_field)
         particle.velocity += particle.acceleration * self.time_step
         particle_traveled_path = particle.calc_next_position(particle.velocity, self.time_step)
@@ -193,7 +193,7 @@ class System:
 
 
     @staticmethod
-    def time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2):
+    def time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2) -> float:
         """
         Calculate time until collision happen. Consider uniform particle movement in delta_t
 

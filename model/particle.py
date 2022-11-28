@@ -74,7 +74,7 @@ class Particle:
         return path
 
 
-    def time_to_collision(self, position: Point2, path: Segment2):
+    def time_to_collision(self, position: Point2, path: Segment2) -> float:
         """
         Calculate time interval until defined collision
 
