@@ -1,7 +1,7 @@
 import numpy as np
 
 from skgeom.draw import draw
-from scipy.constants import c, e
+from scipy.constants import c
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
@@ -117,7 +117,7 @@ class System:
         return relaxation, delta_t, collision_segment
 
 
-    def _calc_particle_param(self, particle) -> Segment2:
+    def _calc_particle_parameters(self, particle) -> Segment2:
         """
         Calculate particle mechanical parameters
 
@@ -142,7 +142,7 @@ class System:
         cumulative_time = 0
 
         while not condition:
-            traveled_path = self._calc_particle_param(particle)
+            traveled_path = self._calc_particle_parameters(particle)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, lowest_collision_segment = self._calc_closer_intersection(
                 particle.velocity, intersection_points, traveled_path
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     carrier_c = 1.1e16
     mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
     particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
-    pol = Topology.from_file('../tests/test2.svg', 1e-9)
+    pol = Topology.from_file('../tests/test.svg', 1e-9)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=50)
     system.set_particles_parameters()
