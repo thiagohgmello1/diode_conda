@@ -1,8 +1,13 @@
+import time
+import numpy as np
 import skgeom as sg
+import matplotlib.pyplot as plt
 
 from skgeom.draw import draw
+from matplotlib.widgets import Button
 from file_readers.xml_reader import XMLReader
-from utils.complementary_operations import equal, vec_to_point
+from matplotlib.backend_bases import MouseButton
+from utils.complementary_operations import equal, vec_to_point, calc_distance_between
 
 
 class Topology:
@@ -21,6 +26,9 @@ class Topology:
         self.segments = dict()
         self._get_segments()
         self.scale = scale
+        self.current_computing_elements = {'direct': list(), 'reverse': list()}
+        self._get_current_computing_elements()
+        print('ei')
 
 
     @classmethod
@@ -143,6 +151,57 @@ class Topology:
                 if intersection_point and not equal(intersection_point, actual_pos, self.scale):
                     intersection_points.append([intersection_point, segment])
         return intersection_points
+
+
+    def get_closer_segment(self, selected_point: sg.Point2):
+        distance = np.inf
+        selected_segment = None
+        for segments in self.segments.values():
+            for segment in segments:
+                dist = calc_distance_between(segment, selected_point)
+                if dist < distance:
+                    distance = dist
+                    selected_segment = segment
+        return selected_segment
+
+
+    def _get_current_computing_elements(self):
+        fig = plt.figure(num='Current elements choice')
+        draw(self.topologies)
+        ax_direct = fig.add_axes([0.7, 0.05, 0.1, 0.075])
+        ax_reverse = fig.add_axes([0.81, 0.05, 0.1, 0.075])
+        direct = Button(ax_direct, 'Direct')
+        reverse = Button(ax_reverse, 'Reverse')
+        direct.on_clicked(self._on_click_direct)
+        reverse.on_clicked(self._on_click_reverse)
+        plt.show()
+
+
+    def _on_click_direct(self, event):
+        if event.button is MouseButton.LEFT:
+            self.binding_id = plt.connect('button_press_event', self.direct_event)
+
+
+    def _on_click_reverse(self, event):
+        if event.button is MouseButton.LEFT:
+            plt.connect('button_press_event', self.reverse_event)
+
+
+    def direct_event(self, event):
+        if event.button is MouseButton.LEFT and event.xdata and event.ydata:
+            point = sg.Point2(event.xdata, event.ydata)
+            segment = self.get_closer_segment(point)
+            if segment not in self.current_computing_elements['direct']:
+                self.current_computing_elements['direct'].append(segment)
+            # plt.disconnect(self.binding_id)
+
+
+    def reverse_event(self, event):
+        if event.button is MouseButton.LEFT and event.xdata and event.ydata:
+            point = sg.Point2(event.xdata, event.ydata)
+            segment = self.get_closer_segment(point)
+            if segment not in self.current_computing_elements['direct']:
+                self.current_computing_elements['reverse'].append(segment)
 
 
     @staticmethod

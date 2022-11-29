@@ -107,6 +107,20 @@ def create_segments(points_list: list[Point2]) -> list:
     return segments_list
 
 
+def calc_distance_between(segment: Segment2, point: Point2):
+    line_p_1 = segment[0]
+    line_p_2 = segment[1]
+    numerator = np.linalg.norm(
+        float(
+            (line_p_2.x() - line_p_1.x()) * (line_p_1.y() - point.y())
+            - (line_p_1.x() - point.x()) * (line_p_2.y() - line_p_1.y())
+        )
+    )
+    denominator = np.sqrt(float((line_p_2.x() - line_p_1.x())) ** 2 + float((line_p_2.y() - line_p_1.y())) ** 2)
+    return numerator / denominator
+
+
+
 if __name__ == '__main__':
     vec1 = Vector2(-1, -1)
     vec2 = Vector2(1, 0)

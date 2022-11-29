@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib
 
 from skgeom.draw import draw
 from scipy.constants import c
@@ -12,6 +13,7 @@ from utils.complementary_operations import vec_to_point, calc_normal, create_seg
 
 TEST = True
 SCALE = 10
+matplotlib.use('TkAgg')
 
 
 class System:
@@ -138,10 +140,10 @@ class System:
         :return: None
         """
         simulated_time = 0
-        condition = self._stop_condition(simulated_time)
+        stop_conditions = self._calc_stop_conditions(simulated_time)
         cumulative_time = 0
 
-        while not condition:
+        while not stop_conditions:
             traveled_path = self._calc_particle_parameters(particle)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, lowest_collision_segment = self._calc_closer_intersection(
@@ -166,13 +168,13 @@ class System:
 
             simulated_time += lowest_time_to_collision
             self.time_steps += 1
-            condition = self._stop_condition(simulated_time)
+            stop_conditions = self._calc_stop_conditions(simulated_time)
             if TEST:
                 particle_pos = Point2(particle.position.x(), particle.position.y())
                 particle.positions.append(particle_pos)
 
 
-    def _stop_condition(self, simulated_time) -> bool:
+    def _calc_stop_conditions(self, simulated_time) -> bool:
         """
         Calculate if any stop condition was met
 
@@ -232,7 +234,7 @@ if __name__ == '__main__':
     carrier_c = 1.1e16
     mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
     particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
-    pol = Topology.from_file('../tests/test.svg', 1e-9)
+    pol = Topology.from_file('../tests/test3.svg', 1e-9)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=50)
     system.set_particles_parameters()

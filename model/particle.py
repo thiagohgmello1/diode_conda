@@ -6,6 +6,9 @@ from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
 
+STOP_CONDITION = 100
+
+
 class Particle:
     def __init__(self, density: float, effective_mass: float, fermi_velocity: float, position=None):
         """
@@ -95,10 +98,17 @@ class Particle:
         :return: None
         """
         position = self.position + self.velocity * delta_t
-        if not topology_check_method(vec_to_point(position)):
-            delta_t = delta_t / 100
+        stop_counter = 0
+
+        while stop_counter < STOP_CONDITION and (not topology_check_method(vec_to_point(position))):
+            delta_t = delta_t / 2
             position = self.position + self.velocity * delta_t
             normal_vec = None
+            stop_counter += 1
+
+        if stop_counter == STOP_CONDITION:
+            raise ValueError("Bad discretization time.")
+
         self.position = position
         if relaxation:
             self.velocity = mirror(self.velocity, Vector2(*random_vec()))
