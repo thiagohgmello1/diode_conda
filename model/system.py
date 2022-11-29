@@ -1,7 +1,7 @@
 import numpy as np
 
 from skgeom.draw import draw
-from scipy.constants import c
+from scipy.constants import c, e
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
@@ -11,6 +11,7 @@ from utils.complementary_operations import vec_to_point, calc_normal, create_seg
 
 
 TEST = True
+SCALE = 10
 
 
 class System:
@@ -60,7 +61,16 @@ class System:
         :return: simulation time step
         """
         if not time_step:
-            return self.relax_time / 20
+            max_e_field = np.sqrt(float(self.e_field.squared_length()))
+            min_dimension = min(
+                [
+                    self.topology.bbox.xmax() - self.topology.bbox.xmin(),
+                    self.topology.bbox.ymax() - self.topology.bbox.ymin()
+                ]
+            )
+            fermi_min = min_dimension / self.material.scalar_fermi_velocity
+            drift_min = np.sqrt(min_dimension * self.particles[0].mass / (max_e_field * abs(self.particles[0].charge)))
+            return float(1 / SCALE * min(fermi_min, drift_min, self.relax_time))
         return self.relax_time / time_step
 
 
@@ -144,7 +154,9 @@ class System:
             particle_pos = particle.position + particle.velocity * lowest_time_to_collision
             particle_pos = Point2(particle_pos.x(), particle_pos.y())
             segment_normal_vec = calc_normal(lowest_collision_segment, particle_pos)
-            particle.move(segment_normal_vec, lowest_time_to_collision, relaxation)
+            lowest_time_to_collision = particle.move(
+                segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
+            )
 
             if relaxation:
                 cumulative_time = 0
@@ -167,8 +179,8 @@ class System:
         :param simulated_time: total simulated time for specific particle
         :return: stop condition
         """
-        time_steps_condition = self.time_steps >= self.max_time_steps
-        collisions_condition = self.collisions >= self.max_collisions
+        time_steps_condition = self.time_steps > self.max_time_steps
+        collisions_condition = self.collisions > self.max_collisions
         time_condition = np.isclose(simulated_time, self.max_time_simulation)
 
         return time_steps_condition or collisions_condition or time_condition
@@ -221,10 +233,11 @@ if __name__ == '__main__':
     mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
     particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
     pol = Topology.from_file('../tests/test2.svg', 1e-9)
-    e_field = Vector2(2, 0)
+    e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=50)
     system.set_particles_parameters()
     system.simulate_drude(particles_list[0])
+
     draw(system.topology.topologies)
     if TEST:
         segments = create_segments(particles_list[0].positions)

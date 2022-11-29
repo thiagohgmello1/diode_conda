@@ -84,20 +84,27 @@ class Particle:
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
 
-    def move(self, normal_vec: Vector2, delta_t: float, relaxation: bool):
+    def move(self, normal_vec: Vector2, delta_t: float, relaxation: bool, topology_check_method):
         """
         Move particle according time interval
 
         :param normal_vec: boundary normal vector
         :param delta_t: time interval
         :param relaxation: relaxation event
+        :param topology_check_method: method to check if next point is inside geometry
         :return: None
         """
-        self.position = self.position + self.velocity * delta_t
+        position = self.position + self.velocity * delta_t
+        if not topology_check_method(vec_to_point(position)):
+            delta_t = delta_t / 100
+            position = self.position + self.velocity * delta_t
+            normal_vec = None
+        self.position = position
         if relaxation:
             self.velocity = mirror(self.velocity, Vector2(*random_vec()))
         else:
             self.velocity = mirror(self.velocity, normal_vec)
+        return delta_t
 
 
 if __name__ == '__main__':
