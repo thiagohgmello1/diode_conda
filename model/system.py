@@ -1,6 +1,7 @@
 import numpy as np
 
 from skgeom.draw import draw
+from scipy.constants import c
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
@@ -31,8 +32,10 @@ class System:
         :param topology: desired topology
         :param material: material to topology
         :param electric_field: defined or calculated electric field created by applied voltage in topology [V/m]
+        :param max_time_simulation: maximum time to simulation [s]
         :param max_collisions: defined maximum accepted collisions. Stop criteria
         :param max_time_steps: defined maximum time steps. Stop criteria [s]
+        :param time_step: fraction of relaxation time to define discretization
         """
         self.particles = particles
         self.topology = topology
@@ -78,7 +81,7 @@ class System:
             particle.positions.append(init_pos)
 
 
-    def relaxation_event(
+    def _relaxation_event(
             self,
             delta_t: float,
             cumulative_time: float,
@@ -104,7 +107,13 @@ class System:
         return relaxation, delta_t, collision_segment
 
 
-    def calc_particle_possible_conditions(self, particle) -> Segment2:
+    def _calc_particle_param(self, particle) -> Segment2:
+        """
+        Calculate particle mechanical parameters
+
+        :param particle: particle to be set-up
+        :return: possible particle traveled path
+        """
         particle.acceleration = particle.calc_acceleration(self.e_field)
         particle.velocity += particle.acceleration * self.time_step
         particle_traveled_path = particle.calc_next_position(particle.velocity, self.time_step)
@@ -119,18 +128,17 @@ class System:
         :return: None
         """
         simulated_time = 0
-        condition = self.stop_condition(simulated_time)
+        condition = self._stop_condition(simulated_time)
         cumulative_time = 0
 
         while not condition:
-            traveled_path = self.calc_particle_possible_conditions(particle)
-
+            traveled_path = self._calc_particle_param(particle)
             intersection_points = self.topology.intersection_points(traveled_path)
-            lowest_time_to_collision, lowest_collision_segment = self.calc_closer_intersection(
+            lowest_time_to_collision, lowest_collision_segment = self._calc_closer_intersection(
                 particle.velocity, intersection_points, traveled_path
             )
             cumulative_time += lowest_time_to_collision
-            relaxation, lowest_time_to_collision, lowest_collision_segment = self.relaxation_event(
+            relaxation, lowest_time_to_collision, lowest_collision_segment = self._relaxation_event(
                 lowest_time_to_collision, cumulative_time, lowest_collision_segment
             )
             particle_pos = particle.position + particle.velocity * lowest_time_to_collision
@@ -146,13 +154,13 @@ class System:
 
             simulated_time += lowest_time_to_collision
             self.time_steps += 1
-            condition = self.stop_condition(simulated_time)
+            condition = self._stop_condition(simulated_time)
             if TEST:
                 particle_pos = Point2(particle.position.x(), particle.position.y())
                 particle.positions.append(particle_pos)
 
 
-    def stop_condition(self, simulated_time) -> bool:
+    def _stop_condition(self, simulated_time) -> bool:
         """
         Calculate if any stop condition was met
 
@@ -166,7 +174,7 @@ class System:
         return time_steps_condition or collisions_condition or time_condition
 
 
-    def calc_closer_intersection(
+    def _calc_closer_intersection(
             self,
             particle_velocity,
             intersection_points: list[Point2],
@@ -184,7 +192,7 @@ class System:
         lowest_time_to_collision = self.time_step
         lowest_collision_segment = None
         for intersection_point, collision_element in intersection_points:
-            time_to_collision = self.time_to_collision(particle_velocity, intersection_point, traveled_path)
+            time_to_collision = self._time_to_collision(particle_velocity, intersection_point, traveled_path)
             if time_to_collision < lowest_time_to_collision:
                 lowest_time_to_collision = time_to_collision
                 lowest_collision_segment = collision_element
@@ -193,7 +201,7 @@ class System:
 
 
     @staticmethod
-    def time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2) -> float:
+    def _time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2) -> float:
         """
         Calculate time until collision happen. Consider uniform particle movement in delta_t
 
@@ -207,16 +215,14 @@ class System:
 
 
 if __name__ == '__main__':
-    mat = Material(10, 1, 10)
-    particles_list = [Particle(1, 1, 4)]
-    if TEST:
-        particles_list[0].charge = 1
-        particles_list[0].mass = 1
-        mat.carrier_concentration = 1
-        mat.effective_mass = 1
-    pol = Topology.from_file('../tests/test3.svg', 1)
+    f_velocity = c / 300
+    MFPL = 200e-9
+    carrier_c = 1.1e16
+    mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
+    particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
+    pol = Topology.from_file('../tests/test2.svg', 1e-9)
     e_field = Vector2(2, 0)
-    system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=22)
+    system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=50)
     system.set_particles_parameters()
     system.simulate_drude(particles_list[0])
     draw(system.topology.topologies)

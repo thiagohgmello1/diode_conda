@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.constants import pi, h, epsilon_0, e
+from scipy.constants import pi, h, epsilon_0, e, c
 
 
 class Material:
@@ -71,5 +71,8 @@ class Material:
 
 
 if __name__ == '__main__':
-    m = Material(1, 1e6, 300e-9, 10, 3.9)
+    f_velocity = c / 300
+    mean_FPL = 200e-9
+    carrier_c = 1.1e16
+    m = Material(mean_free_path=mean_FPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
     print(m.carrier_concentration)

@@ -1,8 +1,8 @@
 import skgeom as sg
 
-from utils.complementary_operations import equal, vec_to_point
 from skgeom.draw import draw
 from file_readers.xml_reader import XMLReader
+from utils.complementary_operations import equal, vec_to_point
 
 
 class Topology:
@@ -13,13 +13,13 @@ class Topology:
         :param topologies: list of polygon that form desired topology to be simulated
         :param scale: length scale in meters (ex.: 10e-9 for nanometer)
         """
-        topologies = self.set_orientation(topologies)
+        topologies = self._set_orientation(topologies)
         self.bbox = None
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
         self.boundaries = dict()
-        self.get_boundaries_polygons()
+        self._get_boundaries_polygons()
         self.segments = dict()
-        self.get_segments()
+        self._get_segments()
         self.scale = scale
 
 
@@ -32,7 +32,7 @@ class Topology:
         :param scale: scale dimension (ex.: 1e-6; 1e-9)
         :return: class instantiation
         """
-        topologies = XMLReader(file_name)
+        topologies = XMLReader(file_name, scale)
         return cls(topologies.get_geometries(), scale)
 
 
@@ -47,7 +47,7 @@ class Topology:
         """
         topologies = list()
         for geometry in points:
-            topologies.append(sg.Polygon(cls.create_points(geometry)))
+            topologies.append(sg.Polygon(cls._create_points(geometry, scale)))
         return cls(topologies, scale)
 
 
@@ -61,7 +61,7 @@ class Topology:
         return self.topologies.locate(point)
 
 
-    def get_boundaries_polygons(self):
+    def _get_boundaries_polygons(self):
         """
         Get all polygons boundaries and divide them into internal and external boundaries
 
@@ -84,11 +84,11 @@ class Topology:
         :param polygon: polygon to be subtracted
         :return: None
         """
-        polygon = self.set_orientation([polygon])
+        polygon = self._set_orientation([polygon])
         for pol in polygon:
             self.topologies = self.topologies.difference(pol)
-        self.get_boundaries_polygons()
-        self.get_segments()
+        self._get_boundaries_polygons()
+        self._get_segments()
 
 
     def union_polygon(self, polygon: sg.Polygon):
@@ -98,14 +98,14 @@ class Topology:
         :param polygon: polygon to be added
         :return: None
         """
-        polygon = self.set_orientation([polygon])
+        polygon = self._set_orientation([polygon])
         for pol in polygon:
             self.topologies = self.topologies.union(pol)
-        self.get_boundaries_polygons()
-        self.get_segments()
+        self._get_boundaries_polygons()
+        self._get_segments()
 
 
-    def get_segments(self):
+    def _get_segments(self):
         """
         Get all geometry segments
 
@@ -140,13 +140,13 @@ class Topology:
         for segments in self.segments.values():
             for segment in segments:
                 intersection_point = sg.intersection(segment, traveled_path)
-                if intersection_point and not equal(intersection_point, actual_pos):
+                if intersection_point and not equal(intersection_point, actual_pos, self.scale):
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 
 
     @staticmethod
-    def set_orientation(polygons: list[sg.Polygon]) -> list:
+    def _set_orientation(polygons: list[sg.Polygon]) -> list:
         """
         Set polygons orientation
 
@@ -160,7 +160,7 @@ class Topology:
 
 
     @staticmethod
-    def create_points(points_list) -> list:
+    def _create_points(points_list, scale) -> list:
         """
         Create points from list of floats
 
@@ -169,7 +169,7 @@ class Topology:
         """
         points = list()
         for point in points_list:
-            point = [float(p) for p in point]
+            point = [float(p) * scale for p in point]
             points.append(sg.Point2(point[0], point[1]))
         return points
 

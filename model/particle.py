@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from skgeom.draw import draw
 from material import Material
 from utils.probabilistic_operations import random_vec
