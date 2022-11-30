@@ -112,10 +112,11 @@ class Particle:
 
         self.position = position
         if relaxation:
-            self.velocity = mirror(self.velocity, Vector2(*random_vec()))
+            # self.velocity = mirror(self.velocity, Vector2(*random_vec()))
+            self.set_velocity()
         else:
             self.velocity = mirror(self.velocity, normal_vec)
-        return delta_t
+        return delta_t, normal_vec
 
 
 if __name__ == '__main__':

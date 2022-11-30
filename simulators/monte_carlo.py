@@ -54,6 +54,7 @@ class System:
         self.max_time_simulation = max_time_simulation
         self.max_collisions = max_collisions
         self.max_time_steps = max_time_steps
+        self.simulations_counter = 0
 
 
     def _set_time_step(self, time_step) -> float:
@@ -78,6 +79,12 @@ class System:
 
 
     def set_particle_parameters(self, particle):
+        """
+        Set particle initial parameters
+
+        :param particle: particle to be started
+        :return: None
+        """
         particle.set_velocity()
         particle.set_init_position(self.topology.bbox)
         init_pos = vec_to_point(particle.position)
@@ -114,7 +121,10 @@ class System:
         :return delta_t: time interval
         :return collision_segment: segment where particle will collide if there is no relaxation event
         """
-        relax_probability = 1 - np.exp(-cumulative_time / self.relax_time)
+        if cumulative_time >= self.relax_time:
+            relax_probability = 1
+        else:
+            relax_probability = 1 - np.exp(-cumulative_time / self.relax_time)
         relaxation = decision(relax_probability)
 
         if relaxation:
@@ -144,6 +154,7 @@ class System:
         :param particle: particle to be simulated
         :return: None
         """
+        self.simulations_counter += 1
         simulated_time = 0
         stop_conditions = self._calc_stop_conditions(simulated_time)
         cumulative_time = 0
@@ -161,7 +172,7 @@ class System:
             particle_pos = particle.position + particle.velocity * lowest_time_to_collision
             particle_pos = Point2(particle_pos.x(), particle_pos.y())
             segment_normal_vec = calc_normal(closest_collision_segment, particle_pos)
-            lowest_time_to_collision = particle.move(
+            lowest_time_to_collision, segment_normal_vec = particle.move(
                 segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
             )
             simulated_time += lowest_time_to_collision
@@ -183,6 +194,12 @@ class System:
 
 
     def particle_computation(self, collided_element):
+        """
+        Compute collisions in current elements
+
+        :param collided_element: collided geometry segment
+        :return: None
+        """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
             self.particle_counter += 1
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
@@ -190,6 +207,11 @@ class System:
 
 
     def cal_current(self):
+        """
+        Calculate total current
+
+        :return: calculated currents
+        """
         carrier_concentration = self.material.carrier_concentration
         used_particles = sum([particle.density for particle in self.particles])
         current1 = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) / \
@@ -257,17 +279,16 @@ if __name__ == '__main__':
     MFPL = 200e-9
     carrier_c = 1.1e16
     mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
-    particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
+    particle_model = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
     pol = Topology.from_file('../tests/test3.svg', 1e-8)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
-    # system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=1e4)
-    system = System(particles_list, pol, mat, e_field, max_time_steps=1e6)
+    system = System(particle_model, pol, mat, e_field, max_collisions=1e6, max_time_steps=1e6)
     system.set_particles_parameters()
-    system.simulate_drude(particles_list[0])
+    system.simulate_drude(particle_model[0])
     currents = system.cal_current()
 
     draw(system.topology.topologies)
     if TEST:
-        segments = create_segments(particles_list[0].positions)
+        segments = create_segments(particle_model[0].positions)
         draw(segments)
     print('ei')
