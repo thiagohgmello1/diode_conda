@@ -168,39 +168,27 @@ class Topology:
     def _get_current_computing_elements(self):
         fig = plt.figure(num='Current elements choice')
         draw(self.topologies)
-        ax_direct = fig.add_axes([0.7, 0.05, 0.1, 0.075])
-        ax_reverse = fig.add_axes([0.81, 0.05, 0.1, 0.075])
-        direct = Button(ax_direct, 'Direct')
-        reverse = Button(ax_reverse, 'Reverse')
-        direct.on_clicked(self._on_click_direct)
-        reverse.on_clicked(self._on_click_reverse)
+        ax_select_segments = fig.add_axes([0.7, 0.05, 0.1, 0.075])
+        select_segments = Button(ax_select_segments, 'Current')
+        select_segments.on_clicked(self._on_click_segments)
         plt.show()
 
 
-    def _on_click_direct(self, event):
+    def _on_click_segments(self, event):
         if event.button is MouseButton.LEFT:
-            self.binding_id = plt.connect('button_press_event', self.direct_event)
+            self.binding_id = plt.connect('button_press_event', self._on_click_event)
 
 
-    def _on_click_reverse(self, event):
-        if event.button is MouseButton.LEFT:
-            plt.connect('button_press_event', self.reverse_event)
-
-
-    def direct_event(self, event):
+    def _on_click_event(self, event):
         if event.button is MouseButton.LEFT and event.xdata and event.ydata:
             point = sg.Point2(event.xdata, event.ydata)
             segment = self.get_closer_segment(point)
             if segment not in self.current_computing_elements['direct']:
                 self.current_computing_elements['direct'].append(segment)
-            # plt.disconnect(self.binding_id)
-
-
-    def reverse_event(self, event):
-        if event.button is MouseButton.LEFT and event.xdata and event.ydata:
+        elif event.button is MouseButton.RIGHT and event.xdata and event.ydata:
             point = sg.Point2(event.xdata, event.ydata)
             segment = self.get_closer_segment(point)
-            if segment not in self.current_computing_elements['direct']:
+            if segment not in self.current_computing_elements['reverse']:
                 self.current_computing_elements['reverse'].append(segment)
 
 
