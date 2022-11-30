@@ -1,5 +1,5 @@
 import numpy as np
-from skgeom import Vector2, Point2, Segment2
+from skgeom import Vector2, Point2, Segment2, Polygon
 
 PRECISION = 1e-4
 
@@ -118,7 +118,6 @@ def calc_distance_between(segment: Segment2, point: Point2):
     )
     denominator = np.sqrt(float((line_p_2.x() - line_p_1.x())) ** 2 + float((line_p_2.y() - line_p_1.y())) ** 2)
     return numerator / denominator
-
 
 
 if __name__ == '__main__':

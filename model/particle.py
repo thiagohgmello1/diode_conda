@@ -19,8 +19,9 @@ class Particle:
         :param fermi_velocity: calculated scalar Fermi velocity [m/s]
         :param position: initial position (if desired to define non random initial position)
         """
-        self.charge = (-1) * elementary_charge * density
-        self.mass = effective_mass * density
+        self.density = density
+        self.charge = (-1) * elementary_charge * self.density
+        self.mass = effective_mass * self.density
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
         self.velocity = None
@@ -40,7 +41,7 @@ class Particle:
         self.position = Vector2(*random_vec(min_value=min_range, max_value=max_range, is_normalized=False))
 
 
-    def set_fermi_velocity(self):
+    def set_velocity(self):
         """
         Set particle random Fermi velocity
 
@@ -101,7 +102,7 @@ class Particle:
         stop_counter = 0
 
         while stop_counter < STOP_CONDITION and (not topology_check_method(vec_to_point(position))):
-            delta_t = delta_t / 2
+            delta_t = delta_t / 10
             position = self.position + self.velocity * delta_t
             normal_vec = None
             stop_counter += 1

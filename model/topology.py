@@ -23,12 +23,12 @@ class Topology:
         self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
         self.boundaries = dict()
         self._get_boundaries_polygons()
+        self.area = self.calc_topology_area()
         self.segments = dict()
         self._get_segments()
         self.scale = scale
         self.current_computing_elements = {'direct': list(), 'reverse': list()}
         self._get_current_computing_elements()
-        print('ei')
 
 
     @classmethod
@@ -57,6 +57,14 @@ class Topology:
         for geometry in points:
             topologies.append(sg.Polygon(cls._create_points(geometry, scale)))
         return cls(topologies, scale)
+
+
+    def calc_topology_area(self):
+        area = {'external': 0, 'internal': 0}
+        for boundary_type, polygons in self.boundaries.items():
+            for polygon in polygons:
+                area[boundary_type] += polygon.area()
+        return float(area['external'] - area['internal'])
 
 
     def contains(self, point: sg.Point2) -> bool:
@@ -168,7 +176,7 @@ class Topology:
     def _get_current_computing_elements(self):
         fig = plt.figure(num='Current elements choice')
         draw(self.topologies)
-        ax_select_segments = fig.add_axes([0.7, 0.05, 0.1, 0.075])
+        ax_select_segments = fig.add_axes(rect=[0.77, 0.9, 0.1, 0.05])
         select_segments = Button(ax_select_segments, 'Current')
         select_segments.on_clicked(self._on_click_segments)
         plt.show()

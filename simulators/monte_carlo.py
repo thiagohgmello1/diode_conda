@@ -2,16 +2,16 @@ import numpy as np
 import matplotlib
 
 from skgeom.draw import draw
-from scipy.constants import c
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
 from skgeom import Vector2, Point2, Segment2
+from scipy.constants import c, elementary_charge
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
 
-TEST = True
+TEST = False
 SCALE = 10
 matplotlib.use('TkAgg')
 
@@ -50,6 +50,7 @@ class System:
         self.collisions = 0
         self.time_steps = 0
 
+        self.particle_counter = 0
         self.max_time_simulation = max_time_simulation
         self.max_collisions = max_collisions
         self.max_time_steps = max_time_steps
@@ -76,6 +77,17 @@ class System:
         return self.relax_time / time_step
 
 
+    def set_particle_parameters(self, particle):
+        particle.set_velocity()
+        particle.set_init_position(self.topology.bbox)
+        init_pos = vec_to_point(particle.position)
+
+        while not self.topology.contains(init_pos):
+            particle.set_init_position(self.topology.bbox)
+            init_pos = vec_to_point(particle.position)
+        particle.positions.append(init_pos)
+
+
     def set_particles_parameters(self):
         """
         Set particles initial parameters
@@ -83,14 +95,7 @@ class System:
         :return: None
         """
         for particle in self.particles:
-            particle.set_fermi_velocity()
-            particle.set_init_position(self.topology.bbox)
-            init_pos = vec_to_point(particle.position)
-
-            while not self.topology.contains(init_pos):
-                particle.set_init_position(self.topology.bbox)
-                init_pos = vec_to_point(particle.position)
-            particle.positions.append(init_pos)
+            self.set_particle_parameters(particle)
 
 
     def _relaxation_event(
@@ -146,32 +151,51 @@ class System:
         while not stop_conditions:
             traveled_path = self._calc_particle_parameters(particle)
             intersection_points = self.topology.intersection_points(traveled_path)
-            lowest_time_to_collision, lowest_collision_segment = self._calc_closer_intersection(
+            lowest_time_to_collision, closest_collision_segment = self._calc_closer_intersection(
                 particle.velocity, intersection_points, traveled_path
             )
             cumulative_time += lowest_time_to_collision
-            relaxation, lowest_time_to_collision, lowest_collision_segment = self._relaxation_event(
-                lowest_time_to_collision, cumulative_time, lowest_collision_segment
+            relaxation, lowest_time_to_collision, closest_collision_segment = self._relaxation_event(
+                lowest_time_to_collision, cumulative_time, closest_collision_segment
             )
             particle_pos = particle.position + particle.velocity * lowest_time_to_collision
             particle_pos = Point2(particle_pos.x(), particle_pos.y())
-            segment_normal_vec = calc_normal(lowest_collision_segment, particle_pos)
+            segment_normal_vec = calc_normal(closest_collision_segment, particle_pos)
             lowest_time_to_collision = particle.move(
                 segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
             )
+            simulated_time += lowest_time_to_collision
+            self.time_steps += 1
 
             if relaxation:
                 cumulative_time = 0
             elif segment_normal_vec:
                 cumulative_time = 0
                 self.collisions += 1
+                self.particle_computation(closest_collision_segment)
+                simulated_time = 0
+                self.set_particle_parameters(particle)
 
-            simulated_time += lowest_time_to_collision
-            self.time_steps += 1
             stop_conditions = self._calc_stop_conditions(simulated_time)
             if TEST:
                 particle_pos = Point2(particle.position.x(), particle.position.y())
                 particle.positions.append(particle_pos)
+
+
+    def particle_computation(self, collided_element):
+        if collided_element and collided_element in self.topology.current_computing_elements['direct']:
+            self.particle_counter += 1
+        elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
+            self.particle_counter -= 1
+
+
+    def cal_current(self):
+        carrier_concentration = self.material.carrier_concentration
+        used_particles = sum([particle.density for particle in self.particles])
+        current1 = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) / \
+                   (used_particles * self.time_steps * self.time_step)
+        current2 = self.particle_counter * elementary_charge / (self.time_steps * self.time_step)
+        return current1, current2
 
 
     def _calc_stop_conditions(self, simulated_time) -> bool:
@@ -234,11 +258,13 @@ if __name__ == '__main__':
     carrier_c = 1.1e16
     mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
     particles_list = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
-    pol = Topology.from_file('../tests/test3.svg', 1e-9)
+    pol = Topology.from_file('../tests/test3.svg', 1e-8)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
-    system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=50)
+    # system = System(particles_list, pol, mat, e_field, max_collisions=20, max_time_steps=1e4)
+    system = System(particles_list, pol, mat, e_field, max_time_steps=1e6)
     system.set_particles_parameters()
     system.simulate_drude(particles_list[0])
+    currents = system.cal_current()
 
     draw(system.topology.topologies)
     if TEST:
