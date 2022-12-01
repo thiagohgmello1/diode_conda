@@ -12,7 +12,7 @@ from utils.comparable_methods import drude_analytical_model
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-TEST = True
+TEST = False
 SCALE = 10
 matplotlib.use('TkAgg')
 
@@ -191,9 +191,7 @@ class System:
                 segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
             )
 
-            if TEST:
-                particle_pos = Point2(particle.position.x(), particle.position.y())
-                particle.positions.append(particle_pos)
+            self.save_particle_data(particle)
 
             self.simulated_time += lowest_time_to_collision
             self.time_steps += 1
@@ -205,13 +203,18 @@ class System:
                 self.collisions += 1
                 current_collision = self.particle_computation(closest_collision_segment, particle.density)
                 if current_collision:
+                    self.save_particle_data(particle)
                     self.set_particle_parameters(particle)
 
             stop_conditions = self._calc_stop_conditions()
 
-            if TEST:
-                particle_pos = Point2(particle.position.x(), particle.position.y())
-                particle.positions.append(particle_pos)
+
+    @staticmethod
+    def save_particle_data(particle):
+        if TEST:
+            particle_pos = Point2(particle.position.x(), particle.position.y())
+            particle.positions.append(particle_pos)
+
 
     def particle_computation(self, collided_element, particle_density):
         """
