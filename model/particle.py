@@ -81,7 +81,7 @@ class Particle:
         pos = Segment2(path[0], position)
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
 
-    def move(self, normal_vec: Vector2, delta_t: float, relaxation: bool, topology_check_method):
+    def move(self, normal_vec: Vector2, delta_t: float, relaxation: str, topology_check_method):
         """
         Move particle according time interval
 
@@ -104,9 +104,10 @@ class Particle:
             raise ValueError("Bad discretization time.")
 
         self.position = position
-        if relaxation:
+        if relaxation == "relax":
+            self.set_velocity()
+        elif relaxation == "collide":
             self.velocity = mirror(self.velocity, Vector2(*random_vec()))
-            # self.set_velocity()
         else:
             self.velocity = mirror(self.velocity, normal_vec)
         return delta_t, normal_vec

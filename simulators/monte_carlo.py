@@ -8,10 +8,11 @@ from model.topology import Topology
 from model.material import Material
 from skgeom import Vector2, Point2, Segment2
 from scipy.constants import c, elementary_charge
+from utils.comparable_methods import drude_analytical_model
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-TEST = False
+TEST = True
 SCALE = 10
 matplotlib.use('TkAgg')
 
@@ -48,15 +49,19 @@ class System:
         self.relax_time = self.material.relax_time
         self.time_step = self._set_time_step(time_step)
 
+        self.total_simulated_particles = 0
+        self.particle_counter = 0
+
+        self.max_time_simulation = max_time_simulation
+        self.simulated_time = 0
+
+        self.max_collisions = max_collisions
         self.collisions = 0
+
+        self.max_time_steps = max_time_steps
         self.time_steps = 0
 
-        self.particle_counter = 0
-        self.max_time_simulation = max_time_simulation
-        self.max_collisions = max_collisions
-        self.max_time_steps = max_time_steps
         self.simulations_counter = 0
-        self.simulated_time = 0
 
     @staticmethod
     def create_particles(particle_model, number_of_particles):
@@ -119,19 +124,19 @@ class System:
             delta_t: float,
             cumulative_time: float,
             collision_segment: Segment2
-    ) -> (bool, float, Segment2):
+    ) -> (str, float, Segment2):
         """
         Define if relaxation event occur in time interval
 
         :param delta_t: time interval
         :param cumulative_time: cumulative time since the last collision
         :param collision_segment: segment where particle will collide
-        :return relaxation: boolean indicating if there is or there is not relaxation event
+        :return relaxation: string indicating if there is or there is not relaxation event
         :return delta_t: time interval
         :return collision_segment: segment where particle will collide if there is no relaxation event
         """
         if cumulative_time >= self.relax_time:
-            relax_probability = 1
+            return 'relax', 0, None
         else:
             relax_probability = 1 - np.exp(-cumulative_time / self.relax_time)
         relaxation = decision(relax_probability)
@@ -139,6 +144,9 @@ class System:
         if relaxation:
             delta_t = random_number(0, delta_t)
             collision_segment = None
+            relaxation = "collide"
+        else:
+            relaxation = "not collide"
 
         return relaxation, delta_t, collision_segment
 
@@ -164,8 +172,9 @@ class System:
         self.simulations_counter += 1
         stop_conditions = self._calc_stop_conditions()
         cumulative_time = 0
-
+        count = 0
         while not stop_conditions:
+            count += 1
             traveled_path = self._calc_particle_parameters(particle)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, closest_collision_segment = self._calc_closer_intersection(
@@ -181,35 +190,44 @@ class System:
             lowest_time_to_collision, segment_normal_vec = particle.move(
                 segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
             )
-            self.simulated_time += lowest_time_to_collision
-            self.time_steps += 1
 
-            if relaxation:
-                cumulative_time = 0
-            elif segment_normal_vec:
-                cumulative_time = 0
-                self.collisions += 1
-                current_collision = self.particle_computation(closest_collision_segment)
-                if current_collision:
-                    self.set_particle_parameters(particle)
-
-            stop_conditions = self._calc_stop_conditions()
             if TEST:
                 particle_pos = Point2(particle.position.x(), particle.position.y())
                 particle.positions.append(particle_pos)
 
-    def particle_computation(self, collided_element):
+            self.simulated_time += lowest_time_to_collision
+            self.time_steps += 1
+
+            if relaxation in ["relax", "collide"]:
+                cumulative_time = 0
+            elif segment_normal_vec:
+                cumulative_time = 0
+                self.collisions += 1
+                current_collision = self.particle_computation(closest_collision_segment, particle.density)
+                if current_collision:
+                    self.set_particle_parameters(particle)
+
+            stop_conditions = self._calc_stop_conditions()
+
+            if TEST:
+                particle_pos = Point2(particle.position.x(), particle.position.y())
+                particle.positions.append(particle_pos)
+
+    def particle_computation(self, collided_element, particle_density):
         """
         Compute collisions in current elements
 
         :param collided_element: collided geometry segment
-        :return: None
+        :param particle_density: particle density
+        :return: boolean indicating if there was rectification
         """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
-            self.particle_counter += 1
+            self.particle_counter += particle_density
+            self.total_simulated_particles += particle_density
             return True
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
-            self.particle_counter -= 1
+            self.particle_counter -= particle_density
+            self.total_simulated_particles += particle_density
             return True
         return False
 
@@ -220,10 +238,9 @@ class System:
         :return: calculated currents
         """
         carrier_concentration = self.material.carrier_concentration
-        used_particles = sum([particle.density for particle in self.particles])
-        current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) / \
-                  (used_particles * self.simulated_time)
-        current2 = elementary_charge * self.particle_counter * used_particles / self.simulated_time
+        current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
+                  (self.total_simulated_particles * self.simulated_time)
+        current2 = elementary_charge * self.particle_counter * self.total_simulated_particles / self.simulated_time
         return current, current2
 
     def _calc_stop_conditions(self) -> bool:
@@ -234,7 +251,7 @@ class System:
         """
         time_steps_condition = self.time_steps > self.max_time_steps
         collisions_condition = self.collisions > self.max_collisions
-        time_condition = np.isclose(self.simulated_time, self.max_time_simulation)
+        time_condition = np.isclose(self.simulated_time, self.max_time_simulation, atol=0)
 
         return time_steps_condition or collisions_condition or time_condition
 
@@ -293,16 +310,20 @@ if __name__ == '__main__':
     particle_m = Particle(density=100, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file('../tests/rectangle.svg', 1e-7)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
-    system = System(particle_m, 1, pol, mat, e_field, max_collisions=1e6, max_time_steps=1e6)
+    system = System(particle_m, 1, pol, mat, e_field, max_time_steps=50)
     system.set_particles_parameters()
     exec_time = time.time()
     system.simulate_drude(system.particles[0])
     exec_time = time.time() - exec_time
-    currents = system.cal_current()
 
-    draw(system.topology.topologies)
-    print(f'Current:{currents}')
+    drude_current = drude_analytical_model(
+        float(pol.bbox.ymax() - pol.bbox.ymin()), mat.relax_time, mat.carrier_concentration, mat.effective_mass, e_field
+    )
+    # currents = system.cal_current()
+    # print(f'Current:{currents}')
+    print(f'Drude current: {drude_current}')
     print(f'Execution time: {exec_time}')
+    draw(system.topology.topologies)
     if TEST:
         segments = create_segments(system.particles[0].positions)
         draw(segments)

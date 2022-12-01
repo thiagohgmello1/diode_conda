@@ -1,8 +1,13 @@
-from file_readers.xml_reader import XMLReader
-from skgeom.draw import draw
+from multiprocessing import Process, Queue
 
-svg_file = XMLReader('tests/test.svg')
 
-rectangles = svg_file.get_rectangles()
-polygons = svg_file.get_general_polygons()
-print('ei')
+def f(q):
+    q.put([42, None, 'hello'])
+
+
+if __name__ == '__main__':
+    q = Queue()
+    p = Process(target=f, args=(q,))
+    p.start()
+    print(q.get())    # prints "[42, None, 'hello']"
+    p.join()
