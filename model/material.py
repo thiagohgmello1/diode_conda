@@ -37,7 +37,6 @@ class Material:
         self.effective_mass = self._calc_effective_mass()
         self._calc_relax_time()
 
-
     def _calc_carrier_concentration(self, gate_voltage, substrate_thickness, carrier_concentration) -> float:
         """
         Define carrier concentration
@@ -50,7 +49,6 @@ class Material:
             carrier_concentration = epsilon_0 * self.permittivity * gate_voltage / (substrate_thickness * e)
         return carrier_concentration
 
-
     def _calc_effective_mass(self):
         """
         Calculate relative effective particle mass. From E=m_{e}v_{*}^2
@@ -58,7 +56,6 @@ class Material:
         :return: effective particle mass
         """
         return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity)
-
 
     def _calc_relax_time(self):
         """

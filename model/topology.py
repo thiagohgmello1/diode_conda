@@ -30,7 +30,6 @@ class Topology:
         self.current_computing_elements = {'direct': list(), 'reverse': list()}
         self._get_current_computing_elements()
 
-
     @classmethod
     def from_file(cls, file_name: str, scale: float):
         """
@@ -42,7 +41,6 @@ class Topology:
         """
         topologies = XMLReader(file_name, scale)
         return cls(topologies.get_geometries(), scale)
-
 
     @classmethod
     def from_points(cls, points: list[list], scale: float):
@@ -58,14 +56,12 @@ class Topology:
             topologies.append(sg.Polygon(cls._create_points(geometry, scale)))
         return cls(topologies, scale)
 
-
     def calc_topology_area(self):
         area = {'external': 0, 'internal': 0}
         for boundary_type, polygons in self.boundaries.items():
             for polygon in polygons:
                 area[boundary_type] += polygon.area()
         return float(area['external'] - area['internal'])
-
 
     def contains(self, point: sg.Point2) -> bool:
         """
@@ -75,7 +71,6 @@ class Topology:
         :return: boolean indicating if point is or is not inside geometry
         """
         return self.topologies.locate(point)
-
 
     def _get_boundaries_polygons(self):
         """
@@ -92,7 +87,6 @@ class Topology:
         self.boundaries['external'] = external_boundaries
         self.bbox = self.boundaries['external'][0].bbox()
 
-
     def diff_polygon(self, polygon: sg.Polygon):
         """
         Subtract polygon from topology
@@ -105,7 +99,6 @@ class Topology:
             self.topologies = self.topologies.difference(pol)
         self._get_boundaries_polygons()
         self._get_segments()
-
 
     def union_polygon(self, polygon: sg.Polygon):
         """
@@ -120,13 +113,13 @@ class Topology:
         self._get_boundaries_polygons()
         self._get_segments()
 
-
     def _get_segments(self):
         """
         Get all geometry segments
 
         :return: None
         """
+
         def extract_segments(pols):
             segments = list()
             for pol in pols:
@@ -142,7 +135,6 @@ class Topology:
                 external_segments.extend(extract_segments(polygons))
         self.segments['internal'] = internal_segments
         self.segments['external'] = external_segments
-
 
     def intersection_points(self, traveled_path: sg.Segment2) -> list:
         """
@@ -160,7 +152,6 @@ class Topology:
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 
-
     def get_closer_segment(self, selected_point: sg.Point2):
         distance = np.inf
         selected_segment = None
@@ -172,7 +163,6 @@ class Topology:
                     selected_segment = segment
         return selected_segment
 
-
     def _get_current_computing_elements(self):
         fig = plt.figure(num='Current elements choice')
         draw(self.topologies)
@@ -181,11 +171,9 @@ class Topology:
         select_segments.on_clicked(self._on_click_segments)
         plt.show()
 
-
     def _on_click_segments(self, event):
         if event.button is MouseButton.LEFT:
             self.binding_id = plt.connect('button_press_event', self._on_click_event)
-
 
     def _on_click_event(self, event):
         if event.button is MouseButton.LEFT and event.xdata and event.ydata:
@@ -199,7 +187,6 @@ class Topology:
             if segment not in self.current_computing_elements['reverse']:
                 self.current_computing_elements['reverse'].append(segment)
 
-
     @staticmethod
     def _set_orientation(polygons: list[sg.Polygon]) -> list:
         """
@@ -212,7 +199,6 @@ class Topology:
             if polygon.orientation() == -1:
                 polygon.reverse_orientation()
         return polygons
-
 
     @staticmethod
     def _create_points(points_list, scale) -> list:

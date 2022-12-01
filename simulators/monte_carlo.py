@@ -1,5 +1,6 @@
-import numpy as np
+import time
 import matplotlib
+import numpy as np
 
 from skgeom.draw import draw
 from model.particle import Particle
@@ -10,7 +11,6 @@ from scipy.constants import c, elementary_charge
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-
 TEST = False
 SCALE = 10
 matplotlib.use('TkAgg')
@@ -19,7 +19,8 @@ matplotlib.use('TkAgg')
 class System:
     def __init__(
             self,
-            particles: list[Particle],
+            particle: Particle,
+            number_of_particles: int,
             topology: Topology,
             material: Material,
             electric_field: Vector2,
@@ -31,7 +32,7 @@ class System:
         """
         Create system to be simulated (topology + particles + materials + etc.)
 
-        :param particles: particles to be simulated
+        :param particle: particle model to be simulated
         :param topology: desired topology
         :param material: material to topology
         :param electric_field: defined or calculated electric field created by applied voltage in topology [V/m]
@@ -40,7 +41,7 @@ class System:
         :param max_time_steps: defined maximum time steps. Stop criteria [s]
         :param time_step: fraction of relaxation time to define discretization
         """
-        self.particles = particles
+        self.particles = self.create_particles(particle, number_of_particles)
         self.topology = topology
         self.material = material
         self.e_field = electric_field
@@ -55,7 +56,17 @@ class System:
         self.max_collisions = max_collisions
         self.max_time_steps = max_time_steps
         self.simulations_counter = 0
+        self.simulated_time = 0
 
+    @staticmethod
+    def create_particles(particle_model, number_of_particles):
+        particles = list()
+        density = particle_model.density
+        effective_mass = particle_model.mass / particle_model.density
+        fermi_velocity = particle_model.scalar_fermi_velocity
+        for _ in range(number_of_particles):
+            particles.append(Particle(density, effective_mass, fermi_velocity))
+        return particles
 
     def _set_time_step(self, time_step) -> float:
         """
@@ -77,7 +88,6 @@ class System:
             return float(1 / SCALE * min(fermi_min, drift_min, self.relax_time))
         return self.relax_time / time_step
 
-
     def set_particle_parameters(self, particle):
         """
         Set particle initial parameters
@@ -92,8 +102,8 @@ class System:
         while not self.topology.contains(init_pos):
             particle.set_init_position(self.topology.bbox)
             init_pos = vec_to_point(particle.position)
-        particle.positions.append(init_pos)
-
+        if TEST:
+            particle.positions.append(init_pos)
 
     def set_particles_parameters(self):
         """
@@ -103,7 +113,6 @@ class System:
         """
         for particle in self.particles:
             self.set_particle_parameters(particle)
-
 
     def _relaxation_event(
             self,
@@ -133,7 +142,6 @@ class System:
 
         return relaxation, delta_t, collision_segment
 
-
     def _calc_particle_parameters(self, particle) -> Segment2:
         """
         Calculate particle mechanical parameters
@@ -146,7 +154,6 @@ class System:
         particle_traveled_path = particle.calc_next_position(particle.velocity, self.time_step)
         return particle_traveled_path
 
-
     def simulate_drude(self, particle: Particle):
         """
         Simulate Drude event. Simulation can be executed in GPU or single-multithreading CPU
@@ -155,8 +162,7 @@ class System:
         :return: None
         """
         self.simulations_counter += 1
-        simulated_time = 0
-        stop_conditions = self._calc_stop_conditions(simulated_time)
+        stop_conditions = self._calc_stop_conditions()
         cumulative_time = 0
 
         while not stop_conditions:
@@ -175,7 +181,7 @@ class System:
             lowest_time_to_collision, segment_normal_vec = particle.move(
                 segment_normal_vec, lowest_time_to_collision, relaxation, self.topology.contains
             )
-            simulated_time += lowest_time_to_collision
+            self.simulated_time += lowest_time_to_collision
             self.time_steps += 1
 
             if relaxation:
@@ -183,15 +189,14 @@ class System:
             elif segment_normal_vec:
                 cumulative_time = 0
                 self.collisions += 1
-                self.particle_computation(closest_collision_segment)
-                simulated_time = 0
-                self.set_particle_parameters(particle)
+                current_collision = self.particle_computation(closest_collision_segment)
+                if current_collision:
+                    self.set_particle_parameters(particle)
 
-            stop_conditions = self._calc_stop_conditions(simulated_time)
+            stop_conditions = self._calc_stop_conditions()
             if TEST:
                 particle_pos = Point2(particle.position.x(), particle.position.y())
                 particle.positions.append(particle_pos)
-
 
     def particle_computation(self, collided_element):
         """
@@ -202,9 +207,11 @@ class System:
         """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
             self.particle_counter += 1
+            return True
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
             self.particle_counter -= 1
-
+            return True
+        return False
 
     def cal_current(self):
         """
@@ -214,25 +221,22 @@ class System:
         """
         carrier_concentration = self.material.carrier_concentration
         used_particles = sum([particle.density for particle in self.particles])
-        current1 = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) / \
-                   (used_particles * self.time_steps * self.time_step)
-        current2 = self.particle_counter * elementary_charge / (self.time_steps * self.time_step)
-        return current1, current2
+        current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) / \
+                  (used_particles * self.simulated_time)
+        current2 = elementary_charge * self.particle_counter * used_particles / self.simulated_time
+        return current, current2
 
-
-    def _calc_stop_conditions(self, simulated_time) -> bool:
+    def _calc_stop_conditions(self) -> bool:
         """
         Calculate if any stop condition was met
 
-        :param simulated_time: total simulated time for specific particle
         :return: stop condition
         """
         time_steps_condition = self.time_steps > self.max_time_steps
         collisions_condition = self.collisions > self.max_collisions
-        time_condition = np.isclose(simulated_time, self.max_time_simulation)
+        time_condition = np.isclose(self.simulated_time, self.max_time_simulation)
 
         return time_steps_condition or collisions_condition or time_condition
-
 
     def _calc_closer_intersection(
             self,
@@ -259,7 +263,6 @@ class System:
 
         return lowest_time_to_collision, lowest_collision_segment
 
-
     @staticmethod
     def _time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2) -> float:
         """
@@ -276,19 +279,31 @@ class System:
 
 if __name__ == '__main__':
     f_velocity = c / 300
-    MFPL = 200e-9
-    carrier_c = 1.1e16
-    mat = Material(mean_free_path=MFPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
-    particle_model = [Particle(density=10, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)]
-    pol = Topology.from_file('../tests/test3.svg', 1e-8)
+    MFPL = 500e-9
+    carrier_c = 7.2e15
+    thickness = 300e-9
+    gate_voltage = 10
+    mat = Material(
+        mean_free_path=MFPL,
+        scalar_fermi_velocity=f_velocity,
+        permittivity=3.9,
+        substrate_thickness=thickness,
+        gate_voltage=gate_voltage
+    )
+    particle_m = Particle(density=100, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
+    pol = Topology.from_file('../tests/rectangle.svg', 1e-7)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
-    system = System(particle_model, pol, mat, e_field, max_collisions=1e6, max_time_steps=1e6)
+    system = System(particle_m, 1, pol, mat, e_field, max_collisions=1e6, max_time_steps=1e6)
     system.set_particles_parameters()
-    system.simulate_drude(particle_model[0])
+    exec_time = time.time()
+    system.simulate_drude(system.particles[0])
+    exec_time = time.time() - exec_time
     currents = system.cal_current()
 
     draw(system.topology.topologies)
+    print(f'Current:{currents}')
+    print(f'Execution time: {exec_time}')
     if TEST:
-        segments = create_segments(particle_model[0].positions)
+        segments = create_segments(system.particles[0].positions)
         draw(segments)
     print('ei')

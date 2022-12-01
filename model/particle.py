@@ -1,10 +1,9 @@
 from skgeom.draw import draw
-from material import Material
+from model.material import Material
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge
 from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
-
 
 STOP_CONDITION = 100
 
@@ -28,7 +27,6 @@ class Particle:
         self.position = position
         self.positions = list()
 
-
     def set_init_position(self, bbox: Bbox2):
         """
         Set particle initial position into box bbox
@@ -40,7 +38,6 @@ class Particle:
         max_range = (bbox.xmax(), bbox.ymax())
         self.position = Vector2(*random_vec(min_value=min_range, max_value=max_range, is_normalized=False))
 
-
     def set_velocity(self):
         """
         Set particle random Fermi velocity
@@ -48,7 +45,6 @@ class Particle:
         :return: None
         """
         self.velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
-
 
     def calc_acceleration(self, electric_field: Vector2) -> Vector2:
         """
@@ -59,7 +55,6 @@ class Particle:
         """
         acceleration = electric_field * (self.charge / self.mass)
         return acceleration
-
 
     def calc_next_position(self, velocity, delta_t: float) -> (Vector2, Segment2):
         """
@@ -75,7 +70,6 @@ class Particle:
         path = Segment2(p_0, p_1)
         return path
 
-
     def time_to_collision(self, position: Point2, path: Segment2) -> float:
         """
         Calculate time interval until defined collision
@@ -86,7 +80,6 @@ class Particle:
         """
         pos = Segment2(path[0], position)
         return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
-
 
     def move(self, normal_vec: Vector2, delta_t: float, relaxation: bool, topology_check_method):
         """
@@ -112,8 +105,8 @@ class Particle:
 
         self.position = position
         if relaxation:
-            # self.velocity = mirror(self.velocity, Vector2(*random_vec()))
-            self.set_velocity()
+            self.velocity = mirror(self.velocity, Vector2(*random_vec()))
+            # self.set_velocity()
         else:
             self.velocity = mirror(self.velocity, normal_vec)
         return delta_t, normal_vec
