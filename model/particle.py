@@ -1,7 +1,6 @@
-from skgeom.draw import draw
 from model.material import Material
 from utils.probabilistic_operations import random_vec
-from scipy.constants import elementary_charge
+from scipy.constants import elementary_charge, electron_mass
 from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
@@ -20,7 +19,8 @@ class Particle:
         """
         self.density = density
         self.charge = (-1) * elementary_charge * self.density
-        self.mass = effective_mass * self.density
+        self.effective_mass = effective_mass
+        self.mass = self.effective_mass * self.density * electron_mass
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
         self.velocity = None

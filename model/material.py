@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.constants import pi, h, epsilon_0, e, c
+from scipy.constants import pi, h, epsilon_0, elementary_charge, c, electron_mass
 
 
 class Material:
@@ -46,7 +46,8 @@ class Material:
         :return: carrier concentration
         """
         if not carrier_concentration:
-            carrier_concentration = epsilon_0 * self.permittivity * gate_voltage / (substrate_thickness * e)
+            carrier_concentration = epsilon_0 * self.permittivity * gate_voltage / \
+                                    (substrate_thickness * elementary_charge)
         return carrier_concentration
 
     def _calc_effective_mass(self):
@@ -55,7 +56,7 @@ class Material:
 
         :return: effective particle mass
         """
-        return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity)
+        return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity * electron_mass)
 
     def _calc_relax_time(self):
         """

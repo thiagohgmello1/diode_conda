@@ -1,5 +1,5 @@
 import numpy as np
-from skgeom import Vector2, Point2, Segment2, Polygon
+from skgeom import Vector2, Point2, Segment2
 
 PRECISION = 1e-4
 

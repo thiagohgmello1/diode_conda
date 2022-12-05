@@ -4,12 +4,13 @@ import numpy as np
 import multiprocessing
 
 from skgeom.draw import draw
+from datetime import datetime
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
 from skgeom import Vector2, Point2, Segment2
-from scipy.constants import c, elementary_charge
 from utils.comparable_methods import drude_analytical_model
+from scipy.constants import c, elementary_charge, electron_mass
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
@@ -69,12 +70,19 @@ class System:
         self.simulations_counter = 0
 
     @staticmethod
-    def create_particles(particle_model, number_of_particles):
+    def create_particles(particle_model, number_of_particles) -> list:
+        """
+        Create particles according specified number or according CPU cores
+
+        :param particle_model: model of desired particle
+        :param number_of_particles: number of particles to be created (if specified)
+        :return: list of particles
+        """
         particles = list()
         if not number_of_particles:
             number_of_particles = multiprocessing.cpu_count()
         density = particle_model.density
-        effective_mass = particle_model.mass / particle_model.density
+        effective_mass = particle_model.effective_mass
         fermi_velocity = particle_model.scalar_fermi_velocity
         for _ in range(number_of_particles):
             particles.append(Particle(density, effective_mass, fermi_velocity))
@@ -172,18 +180,24 @@ class System:
 
 
     def simulate(self, model):
+        """
+        Simulate complete system. Simulation can be executed in GPU or single-multi core CPU
+
+        :param model: desired model to simulate. Must be a method callback (ex.: simulate_drude method)
+        :return: None
+        """
         while self.simulations_counter < self.max_simulations:
             model(self.particles[0])
 
     def simulate_drude(self, particle: Particle):
         """
-        Simulate Drude event. Simulation can be executed in GPU or single-multi core CPU
+        Simulate Drude event
 
         :param particle: particle to be simulated
         :return: None
         """
         self.set_particle_parameters(particle)
-        self.total_macro_particles += 1
+        self.total_macro_particles += particle.density
         self.simulations_counter += 1
         simulated_time = 0
         stop_conditions = self._calc_stop_conditions(simulated_time)
@@ -220,7 +234,6 @@ class System:
                 if current_collision:
                     stop_conditions = True
                     self.save_particle_data(particle)
-                    # self.set_particle_parameters(particle)
                     continue
             stop_conditions = self._calc_stop_conditions(simulated_time)
 
@@ -228,7 +241,7 @@ class System:
             self.simulated_time = simulated_time
 
 
-    def particle_computation(self, collided_element, particle_density):
+    def particle_computation(self, collided_element, particle_density) -> bool:
         """
         Compute collisions in current elements
 
@@ -310,9 +323,28 @@ class System:
 
     @staticmethod
     def save_particle_data(particle):
+        """
+        Save particle positions (if TEST equals True)
+        :param particle: desired particle to save data
+        :return: None
+        """
         if TEST:
             particle_pos = Point2(particle.position.x(), particle.position.y())
             particle.positions.append(particle_pos)
+
+
+def draw_behaviour(init_point, end_point):
+    if TEST:
+        segments_to_print = create_segments(system.particles[0].positions[init_point:end_point])
+        draw(segments_to_print)
+
+
+def save_current(current_file: str, current: float, simulated_geometry: str):
+    now = datetime.now()
+    date_string = now.strftime("%d/%m/%Y %H:%M:%S")
+    with open(current_file, 'a') as f:
+        string_to_be_saved = f'{date_string},{simulated_geometry},{current}\n'
+        f.write(string_to_be_saved)
 
 
 if __name__ == '__main__':
@@ -321,6 +353,7 @@ if __name__ == '__main__':
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
+    geometry = '../tests/rectangle90.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
@@ -329,7 +362,7 @@ if __name__ == '__main__':
         gate_voltage=gate_voltage
     )
     particle_m = Particle(density=100, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file('../tests/rectangle.svg', 1e-7)
+    pol = Topology.from_file(geometry, 1e-6)
     e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
@@ -337,26 +370,25 @@ if __name__ == '__main__':
         material=mat,
         electric_field=e_field,
         max_time_simulation=1e-10,
-        max_simulations=10000
+        max_simulations=50000
     )
-    # system.set_particles_parameters()
     exec_time = time.time()
     system.simulate(system.simulate_drude)
     # system.simulate_drude(system.particles[0])
     exec_time = time.time() - exec_time
 
-    drude_current = drude_analytical_model(
-        float(pol.bbox.ymax() - pol.bbox.ymin()),
+    drude_analytical_current = drude_analytical_model(
+        float(pol.bbox.xmax() - pol.bbox.xmin()),
         mat.relax_time,
         mat.carrier_concentration,
-        mat.effective_mass, e_field
+        mat.effective_mass * electron_mass,
+        e_field
     )
     currents = system.cal_current()
+    save_current('../outputs/currents.csv', currents[0], geometry)
     print(f'Current:{currents}')
-    print(f'Drude current: {drude_current}')
+    print(f'Drude current: {drude_analytical_current}')
     print(f'Execution time: {exec_time}')
     draw(system.topology.topologies)
-    if TEST:
-        segments = create_segments(system.particles[0].positions)
-        draw(segments)
+    draw_behaviour(50000, 50050)
     print('ei')
