@@ -2,6 +2,7 @@ import time
 import matplotlib
 import numpy as np
 import multiprocessing
+import matplotlib.pyplot as plt
 
 from skgeom.draw import draw
 from datetime import datetime
@@ -14,7 +15,7 @@ from scipy.constants import c, elementary_charge, electron_mass
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-TEST = False
+TEST = True
 SCALE = 10
 matplotlib.use('TkAgg')
 
@@ -26,7 +27,7 @@ class System:
             topology: Topology,
             material: Material,
             electric_field: Vector2,
-            max_simulations: float,
+            max_simulations: float = np.inf,
             number_of_particles: int = None,
             max_time_simulation: float = np.inf,
             max_collisions: float = np.inf,
@@ -59,7 +60,7 @@ class System:
         self.particle_counter = 0
 
         self.max_time_simulation = max_time_simulation
-        self.simulated_time = 0
+        self.simulated_time = list()
 
         self.max_collisions = max_collisions
         self.collisions = 0
@@ -68,6 +69,7 @@ class System:
         self.time_steps = 0
 
         self.simulations_counter = 0
+
 
     @staticmethod
     def create_particles(particle_model, number_of_particles) -> list:
@@ -87,6 +89,7 @@ class System:
         for _ in range(number_of_particles):
             particles.append(Particle(density, effective_mass, fermi_velocity))
         return particles
+
 
     def _set_time_step(self, time_step) -> float:
         """
@@ -108,6 +111,7 @@ class System:
             return float(1 / SCALE * min(fermi_min, drift_min, self.relax_time))
         return self.relax_time / time_step
 
+
     def set_particle_parameters(self, particle):
         """
         Set particle initial parameters
@@ -125,6 +129,7 @@ class System:
         if TEST:
             particle.positions.append(init_pos)
 
+
     def set_particles_parameters(self):
         """
         Set particles initial parameters
@@ -133,6 +138,7 @@ class System:
         """
         for particle in self.particles:
             self.set_particle_parameters(particle)
+
 
     def _relaxation_event(
             self,
@@ -154,7 +160,6 @@ class System:
             return 'relax', 0, None
         else:
             relax_probability = 1 - np.exp(-cumulative_time / self.relax_time)
-            # relax_probability = 0
         relaxation = decision(relax_probability)
 
         if relaxation:
@@ -165,6 +170,7 @@ class System:
             relaxation = "not collide"
 
         return relaxation, delta_t, collision_segment
+
 
     def _calc_particle_parameters(self, particle) -> Segment2:
         """
@@ -186,8 +192,11 @@ class System:
         :param model: desired model to simulate. Must be a method callback (ex.: simulate_drude method)
         :return: None
         """
-        while self.simulations_counter < self.max_simulations:
+        while self._calc_stop_conditions():
             model(self.particles[0])
+            progress_bar(self.simulations_counter, self.max_simulations)
+        print('\n')
+
 
     def simulate_drude(self, particle: Particle):
         """
@@ -200,7 +209,7 @@ class System:
         self.total_macro_particles += particle.density
         self.simulations_counter += 1
         simulated_time = 0
-        stop_conditions = self._calc_stop_conditions(simulated_time)
+        stop_conditions = np.isclose(simulated_time, self.max_time_simulation, atol=0)
         cumulative_time = 0
 
         while not stop_conditions:
@@ -235,13 +244,12 @@ class System:
                     stop_conditions = True
                     self.save_particle_data(particle)
                     continue
-            stop_conditions = self._calc_stop_conditions(simulated_time)
+            stop_conditions = np.isclose(simulated_time, self.max_time_simulation, atol=0)
 
-        if simulated_time > self.simulated_time:
-            self.simulated_time = simulated_time
+        self.simulated_time.append(simulated_time)
 
 
-    def particle_computation(self, collided_element, particle_density) -> bool:
+    def particle_computation(self, collided_element: Segment2, particle_density: float) -> bool:
         """
         Compute collisions in current elements
 
@@ -257,22 +265,23 @@ class System:
             return True
         return False
 
-    def _calc_stop_conditions(self, simulated_time) -> bool:
+
+    def _calc_stop_conditions(self) -> bool:
         """
         Calculate if any stop condition was met
 
-        :param simulated_time: time since particle start moving
         :return: stop condition
         """
         time_steps_condition = self.time_steps > self.max_time_steps
         collisions_condition = self.collisions > self.max_collisions
-        time_condition = np.isclose(simulated_time, self.max_time_simulation, atol=0)
+        simulations_condition = self.simulations_counter < self.max_simulations
 
-        return time_steps_condition or collisions_condition or time_condition
+        return time_steps_condition or collisions_condition or simulations_condition
+
 
     def _calc_closer_intersection(
             self,
-            particle_velocity,
+            particle_velocity: Vector2,
             intersection_points: list[Point2],
             traveled_path: Segment2
     ) -> (float, Segment2):
@@ -295,6 +304,7 @@ class System:
 
         return lowest_time_to_collision, lowest_collision_segment
 
+
     def cal_current(self):
         """
         Calculate total current
@@ -303,9 +313,9 @@ class System:
         """
         carrier_concentration = self.material.carrier_concentration
         current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
-                  (self.total_macro_particles * self.simulated_time)
-        current2 = elementary_charge * self.particle_counter / (self.total_macro_particles * self.simulated_time)
-        return current, current2
+                  (self.total_macro_particles * np.mean(self.simulated_time))
+        return current
+
 
     @staticmethod
     def _time_to_collision(particle_velocity: Vector2, position: Point2, path: Segment2) -> float:
@@ -324,7 +334,8 @@ class System:
     @staticmethod
     def save_particle_data(particle):
         """
-        Save particle positions (if TEST equals True)
+        Save particle positions (if TEST is equal True)
+
         :param particle: desired particle to save data
         :return: None
         """
@@ -333,18 +344,42 @@ class System:
             particle.positions.append(particle_pos)
 
 
-def draw_behaviour(init_point, end_point):
+def draw_behaviour(desired_sys, init_point, end_point):
+    """
+    Draw some achieved particle positions
+
+    :param desired_sys: system to be drawn
+    :param init_point: init desired list position
+    :param end_point: end desired list position
+    :return: None
+    """
     if TEST:
-        segments_to_print = create_segments(system.particles[0].positions[init_point:end_point])
+        draw(desired_sys.topology.topologies)
+        segments_to_print = create_segments(desired_sys.particles[0].positions[init_point:end_point])
         draw(segments_to_print)
+        plt.savefig('../outputs/diode.png')
 
 
-def save_current(current_file: str, current: float, simulated_geometry: str):
+def save_current(current_file: str, meas_current: float, simulated_geometry: str):
+    """
+    Save calculated current
+
+    :param current_file: output file
+    :param meas_current: calculated current
+    :param simulated_geometry: .svg simulated file
+    :return: None
+    """
     now = datetime.now()
     date_string = now.strftime("%d/%m/%Y %H:%M:%S")
     with open(current_file, 'a') as f:
-        string_to_be_saved = f'{date_string},{simulated_geometry},{current}\n'
+        string_to_be_saved = f'{date_string},{simulated_geometry},{meas_current}\n'
         f.write(string_to_be_saved)
+
+
+def progress_bar(progress, total):
+    percent = 100 * (progress / total)
+    bar = '█' * int(percent) + '-' * (100 - int(percent))
+    print(f'\r|{bar}| {percent:.1f}%', end='\r')
 
 
 if __name__ == '__main__':
@@ -353,7 +388,7 @@ if __name__ == '__main__':
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
-    geometry = '../tests/rectangle90.svg'
+    geometry = '../tests/rectangle.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
@@ -361,34 +396,32 @@ if __name__ == '__main__':
         substrate_thickness=thickness,
         gate_voltage=gate_voltage
     )
-    particle_m = Particle(density=100, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
+    particle_m = Particle(density=150, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file(geometry, 1e-6)
-    e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
+    e_field = Vector2(-0.5, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
         topology=pol,
         material=mat,
         electric_field=e_field,
-        max_time_simulation=1e-10,
-        max_simulations=50000
+        max_simulations=1000,
     )
     exec_time = time.time()
     system.simulate(system.simulate_drude)
-    # system.simulate_drude(system.particles[0])
     exec_time = time.time() - exec_time
 
     drude_analytical_current = drude_analytical_model(
-        float(pol.bbox.xmax() - pol.bbox.xmin()),
-        mat.relax_time,
-        mat.carrier_concentration,
-        mat.effective_mass * electron_mass,
-        e_field
+        width=float(pol.bbox.ymax() - pol.bbox.ymin()),
+        relax_time=mat.relax_time,
+        carrier_concentration=mat.carrier_concentration,
+        effective_mass=mat.effective_mass * electron_mass,
+        e_field=e_field
     )
-    currents = system.cal_current()
-    save_current('../outputs/currents.csv', currents[0], geometry)
-    print(f'Current:{currents}')
+    simulation_current = system.cal_current()
+    save_current('../outputs/currents.csv', simulation_current, geometry)
+    print(f'Time steps: {system.time_steps}')
+    print(f'Collisions: {system.collisions}')
+    print(f'Current:{simulation_current}')
     print(f'Drude current: {drude_analytical_current}')
     print(f'Execution time: {exec_time}')
-    draw(system.topology.topologies)
-    draw_behaviour(50000, 50050)
-    print('ei')
+    draw_behaviour(system, 500, 600)

@@ -28,6 +28,7 @@ class Topology:
         self.scale = scale
         self.current_computing_elements = {'direct': list(), 'reverse': list()}
         self._get_current_computing_elements()
+        print(self.current_computing_elements)
 
     @classmethod
     def from_file(cls, file_name: str, scale: float):
