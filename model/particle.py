@@ -1,10 +1,10 @@
-from model.material import Material
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
 from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
-STOP_CONDITION = 100
+
+STOP_CONDITION = 10
 
 
 class Particle:
@@ -23,6 +23,7 @@ class Particle:
         self.mass = self.effective_mass * self.density * electron_mass
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
+        self.fermi_velocity = None
         self.velocity = None
         self.position = position
         self.positions = list()
@@ -44,7 +45,8 @@ class Particle:
 
         :return: None
         """
-        self.velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
+        self.fermi_velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
+        self.velocity = self.fermi_velocity
 
     def calc_acceleration(self, electric_field: Vector2) -> Vector2:
         """
@@ -103,21 +105,11 @@ class Particle:
         if stop_counter == STOP_CONDITION:
             raise ValueError("Bad discretization time.")
 
-        self.position = position
-        if relaxation == "relax":
-            self.set_velocity()
-        elif relaxation == "collide":
-            self.velocity = mirror(self.velocity, Vector2(*random_vec()))
-        else:
-            self.velocity = mirror(self.velocity, normal_vec)
+        # self.position = position
+        # if relaxation == "relax":
+        #     self.set_velocity()
+        # elif relaxation == "collide":
+        #     self.velocity = mirror(self.velocity, Vector2(*random_vec()))
+        # else:
+        self.velocity = mirror(self.velocity, normal_vec)
         return delta_t, normal_vec
-
-
-if __name__ == '__main__':
-    particle = Particle(1, 1, 1, 10)
-    mat = Material(1, 1, 1)
-    e_field = Vector2(1, 0)
-    particle.calc_acceleration(e_field)
-    box = Bbox2(1, 2, 3, 4)
-    particle.set_init_position(box)
-    print('ei')

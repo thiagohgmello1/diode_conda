@@ -15,7 +15,7 @@ from scipy.constants import c, elementary_charge, electron_mass
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-TEST = True
+TEST = False
 SCALE = 10
 matplotlib.use('TkAgg')
 
@@ -54,7 +54,7 @@ class System:
         self.material = material
         self.e_field = electric_field
         self.relax_time = self.material.relax_time
-        self.time_step = self._set_time_step(time_step)
+        # self.time_step = self._set_time_step(time_step)
 
         self.total_macro_particles = 0
         self.particle_counter = 0
@@ -172,19 +172,6 @@ class System:
         return relaxation, delta_t, collision_segment
 
 
-    def _calc_particle_parameters(self, particle) -> Segment2:
-        """
-        Calculate particle mechanical parameters
-
-        :param particle: particle to be set-up
-        :return: possible particle traveled path
-        """
-        particle.acceleration = particle.calc_acceleration(self.e_field)
-        particle.velocity += particle.acceleration * self.time_step
-        particle_traveled_path = particle.calc_next_position(particle.velocity, self.time_step)
-        return particle_traveled_path
-
-
     def simulate(self, model):
         """
         Simulate complete system. Simulation can be executed in GPU or single-multi core CPU
@@ -194,8 +181,21 @@ class System:
         """
         while self._calc_stop_conditions():
             model(self.particles[0])
-            progress_bar(self.simulations_counter, self.max_simulations)
+            progress_bar(self.collisions, self.max_collisions)
         print('\n')
+
+
+    def _calc_stop_conditions(self) -> bool:
+        """
+        Calculate if any stop condition was met
+
+        :return: stop condition
+        """
+        time_steps_condition = self.time_steps < self.max_time_steps
+        collisions_condition = self.collisions < self.max_collisions
+        simulations_condition = self.simulations_counter < self.max_simulations
+
+        return time_steps_condition and collisions_condition and simulations_condition
 
 
     def simulate_drude(self, particle: Particle):
@@ -208,20 +208,25 @@ class System:
         self.set_particle_parameters(particle)
         self.total_macro_particles += particle.density
         self.simulations_counter += 1
-        simulated_time = 0
-        stop_conditions = np.isclose(simulated_time, self.max_time_simulation, atol=0)
-        cumulative_time = 0
+
+        particle.acceleration = particle.calc_acceleration(self.e_field)
+        particle.velocity += particle.acceleration * self.relax_time
+
+        # cumulative_time = 0
+        remaining_time = self.relax_time
+        stop_conditions = np.isclose(remaining_time, 0, atol=0)
 
         while not stop_conditions:
-            traveled_path = self._calc_particle_parameters(particle)
+            traveled_path = particle.calc_next_position(particle.velocity, remaining_time)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, closest_collision_segment = self._calc_closer_intersection(
-                particle.velocity, intersection_points, traveled_path
+                remaining_time, particle.velocity, intersection_points, traveled_path
             )
-            cumulative_time += lowest_time_to_collision
-            relaxation, lowest_time_to_collision, closest_collision_segment = self._relaxation_event(
-                lowest_time_to_collision, cumulative_time, closest_collision_segment
-            )
+            # cumulative_time += lowest_time_to_collision
+            # relaxation, lowest_time_to_collision, closest_collision_segment = self._relaxation_event(
+            #     lowest_time_to_collision, cumulative_time, closest_collision_segment
+            # )
+            relaxation = 'None'
             particle_pos = particle.position + particle.velocity * lowest_time_to_collision
             particle_pos = Point2(particle_pos.x(), particle_pos.y())
             segment_normal_vec = calc_normal(closest_collision_segment, particle_pos)
@@ -231,22 +236,24 @@ class System:
 
             self.save_particle_data(particle)
 
-            simulated_time += lowest_time_to_collision
+            remaining_time -= lowest_time_to_collision
             self.time_steps += 1
 
-            if relaxation in ["relax", "collide"]:
-                cumulative_time = 0
-            elif segment_normal_vec:
-                cumulative_time = 0
+            # if relaxation == 'relax':
+            #     cumulative_time = 0
+            #     particle.acceleration = particle.calc_acceleration(self.e_field)
+            #     particle.velocity += particle.acceleration * self.relax_time
+            # elif relaxation == 'collide':
+            #     cumulative_time = 0
+            if segment_normal_vec:
+                # cumulative_time = 0
                 self.collisions += 1
                 current_collision = self.particle_computation(closest_collision_segment, particle.density)
                 if current_collision:
                     stop_conditions = True
                     self.save_particle_data(particle)
                     continue
-            stop_conditions = np.isclose(simulated_time, self.max_time_simulation, atol=0)
-
-        self.simulated_time.append(simulated_time)
+            stop_conditions = np.isclose(remaining_time, 0, atol=0)
 
 
     def particle_computation(self, collided_element: Segment2, particle_density: float) -> bool:
@@ -266,21 +273,9 @@ class System:
         return False
 
 
-    def _calc_stop_conditions(self) -> bool:
-        """
-        Calculate if any stop condition was met
-
-        :return: stop condition
-        """
-        time_steps_condition = self.time_steps > self.max_time_steps
-        collisions_condition = self.collisions > self.max_collisions
-        simulations_condition = self.simulations_counter < self.max_simulations
-
-        return time_steps_condition or collisions_condition or simulations_condition
-
-
     def _calc_closer_intersection(
             self,
+            remaining_time,
             particle_velocity: Vector2,
             intersection_points: list[Point2],
             traveled_path: Segment2
@@ -294,7 +289,7 @@ class System:
         :return lowest_time_to_collision: lowest time to collision
         :return lowest_collision_segment: collided segment
         """
-        lowest_time_to_collision = self.time_step
+        lowest_time_to_collision = remaining_time
         lowest_collision_segment = None
         for intersection_point, collision_element in intersection_points:
             time_to_collision = self._time_to_collision(particle_velocity, intersection_point, traveled_path)
@@ -313,7 +308,7 @@ class System:
         """
         carrier_concentration = self.material.carrier_concentration
         current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
-                  (self.total_macro_particles * np.mean(self.simulated_time))
+                  (self.total_macro_particles * self.max_time_simulation)
         return current
 
 
@@ -379,7 +374,7 @@ def save_current(current_file: str, meas_current: float, simulated_geometry: str
 def progress_bar(progress, total):
     percent = 100 * (progress / total)
     bar = '█' * int(percent) + '-' * (100 - int(percent))
-    print(f'\r|{bar}| {percent:.1f}%', end='\r')
+    print(f'\r|{bar}| {percent:.2f}%', end='\r')
 
 
 if __name__ == '__main__':
@@ -396,15 +391,16 @@ if __name__ == '__main__':
         substrate_thickness=thickness,
         gate_voltage=gate_voltage
     )
-    particle_m = Particle(density=150, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
+    particle_m = Particle(density=100, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file(geometry, 1e-6)
-    e_field = Vector2(-0.5, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
+    e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
         topology=pol,
         material=mat,
         electric_field=e_field,
-        max_simulations=1000,
+        max_collisions=100000,
+        max_time_simulation=mat.relax_time
     )
     exec_time = time.time()
     system.simulate(system.simulate_drude)

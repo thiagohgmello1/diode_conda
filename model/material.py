@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.constants import pi, h, epsilon_0, elementary_charge, c, electron_mass
+from scipy.constants import pi, h, epsilon_0, elementary_charge, electron_mass
 
 
 class Material:
@@ -66,11 +66,3 @@ class Material:
         """
         if not self.relax_time:
             self.relax_time = self.mean_free_path / self.scalar_fermi_velocity
-
-
-if __name__ == '__main__':
-    f_velocity = c / 300
-    mean_FPL = 200e-9
-    carrier_c = 1.1e16
-    m = Material(mean_free_path=mean_FPL, scalar_fermi_velocity=f_velocity, carrier_concentration=carrier_c)
-    print(m.carrier_concentration)

@@ -213,16 +213,3 @@ class Topology:
             point = [float(p) * scale for p in point]
             points.append(sg.Point2(point[0], point[1]))
         return points
-
-
-if __name__ == "__main__":
-    A = [100, 80]
-    B = [100, 100]
-    C = [120, 100]
-    D = [120, 80]
-    test_point = sg.Point2(0, 0)
-    test_segment = sg.Segment2(sg.Point2(110, 80), sg.Point2(80, 70))
-    polygon_1 = Topology.from_file('../tests/test.svg', 1e-9)
-    polygon_2 = sg.Polygon([sg.Point2(*D), sg.Point2(*C), sg.Point2(*B), sg.Point2(*A)])
-    polygon_2.bbox()
-    print(polygon_1.contains(test_point))

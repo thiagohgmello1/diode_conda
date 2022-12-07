@@ -118,12 +118,3 @@ def calc_distance_between(segment: Segment2, point: Point2):
     )
     denominator = np.sqrt(float((line_p_2.x() - line_p_1.x())) ** 2 + float((line_p_2.y() - line_p_1.y())) ** 2)
     return numerator / denominator
-
-
-if __name__ == '__main__':
-    vec1 = Vector2(-1, -1)
-    vec2 = Vector2(1, 0)
-    seg = Segment2(Point2(0, 0), Point2(2, 0))
-    p = Point2(1, 1)
-    normal = calc_normal(seg, p)
-    dot_prod(vec1, vec2)
