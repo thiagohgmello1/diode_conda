@@ -6,7 +6,7 @@ from skgeom.draw import draw
 from matplotlib.widgets import Button
 from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
-from utils.complementary_operations import equal, vec_to_point, calc_distance_between
+from utils.complementary_operations import calc_distance_between, vec_to_point, equal
 
 
 class Topology:
@@ -148,7 +148,7 @@ class Topology:
         for segments in self.segments.values():
             for segment in segments:
                 intersection_point = sg.intersection(segment, traveled_path)
-                if intersection_point and not equal(intersection_point, actual_pos, self.scale):
+                if intersection_point and not equal(intersection_point, actual_pos):
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 

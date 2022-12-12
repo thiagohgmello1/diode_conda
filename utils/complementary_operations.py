@@ -1,8 +1,6 @@
 import numpy as np
 from skgeom import Vector2, Point2, Segment2
 
-PRECISION = 1e-4
-
 
 def dot_prod(vec_1: Vector2, vec_2: Vector2) -> float:
     """
@@ -79,18 +77,16 @@ def vec_to_point(vector: Vector2) -> Point2:
     return Point2(vector.x(), vector.y())
 
 
-def equal(point_1: Point2, point_2: Point2, scale: float):
+def equal(point_1: Point2, point_2: Point2):
     """
     Check if two points are equal
 
     :param point_1: point 1
     :param point_2: point 2
-    :param scale: points scale
     :return: boolean indicating if points are equal
     """
-    scale = scale * PRECISION
-    x_coord = np.isclose(point_1.x().__float__(), point_2.x().__float__(), atol=scale)
-    y_coord = np.isclose(point_1.y().__float__(), point_2.y().__float__(), atol=scale)
+    x_coord = np.isclose(point_1.x().__float__(), point_2.x().__float__(), atol=0)
+    y_coord = np.isclose(point_1.y().__float__(), point_2.y().__float__(), atol=0)
     return x_coord and y_coord
 
 
