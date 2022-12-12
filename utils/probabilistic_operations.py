@@ -1,7 +1,7 @@
 import random
 import numpy as np
 
-# random.seed(123)
+# random.seed(13548)
 
 
 def random_vec(shape=2, min_value: tuple = (-1, -1), max_value: tuple = (1, 1), is_normalized: bool = True) -> np.array:
