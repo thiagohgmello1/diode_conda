@@ -1,10 +1,10 @@
-from model.material import Material
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
 from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
-STOP_CONDITION = 100
+
+STOP_CONDITION = 10
 
 
 class Particle:
@@ -23,6 +23,7 @@ class Particle:
         self.mass = self.effective_mass * self.density * electron_mass
         self.acceleration = None
         self.scalar_fermi_velocity = fermi_velocity
+        self.fermi_velocity = None
         self.velocity = None
         self.position = position
         self.positions = list()
@@ -44,7 +45,8 @@ class Particle:
 
         :return: None
         """
-        self.velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
+        self.fermi_velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
+        self.velocity = self.fermi_velocity
 
     def calc_acceleration(self, electric_field: Vector2) -> Vector2:
         """
@@ -56,68 +58,19 @@ class Particle:
         acceleration = electric_field * (self.charge / self.mass)
         return acceleration
 
-    def calc_next_position(self, velocity, delta_t: float) -> (Vector2, Segment2):
+    def calc_next_position(self, delta_t: float) -> Segment2:
         """
         Calculate next particle position according cinematic equations for uniformly varied motion
 
-        :param velocity: particle velocity in time interval
         :param delta_t: time interval
         :return: next possible position and line segment that connect initial and final particle positions
         """
-        next_pos = self.position + velocity * delta_t
+        next_pos = self.position + self.velocity * delta_t
         p_0 = vec_to_point(self.position)
         p_1 = vec_to_point(next_pos)
         path = Segment2(p_0, p_1)
         return path
 
-    def time_to_collision(self, position: Point2, path: Segment2) -> float:
-        """
-        Calculate time interval until defined collision
 
-        :param position: particle position
-        :param path: crossed line segment
-        :return: time until collision
-        """
-        pos = Segment2(path[0], position)
-        return float(pos.squared_length() / self.velocity.squared_length()) ** (1 / 2)
-
-    def move(self, normal_vec: Vector2, delta_t: float, relaxation: str, topology_check_method):
-        """
-        Move particle according time interval
-
-        :param normal_vec: boundary normal vector
-        :param delta_t: time interval
-        :param relaxation: relaxation event
-        :param topology_check_method: method to check if next point is inside geometry
-        :return: None
-        """
-        position = self.position + self.velocity * delta_t
-        stop_counter = 0
-
-        while stop_counter < STOP_CONDITION and (not topology_check_method(vec_to_point(position))):
-            delta_t = delta_t / 10
-            position = self.position + self.velocity * delta_t
-            normal_vec = None
-            stop_counter += 1
-
-        if stop_counter == STOP_CONDITION:
-            raise ValueError("Bad discretization time.")
-
-        self.position = position
-        if relaxation == "relax":
-            self.set_velocity()
-        elif relaxation == "collide":
-            self.velocity = mirror(self.velocity, Vector2(*random_vec()))
-        else:
-            self.velocity = mirror(self.velocity, normal_vec)
-        return delta_t, normal_vec
-
-
-if __name__ == '__main__':
-    particle = Particle(1, 1, 1, 10)
-    mat = Material(1, 1, 1)
-    e_field = Vector2(1, 0)
-    particle.calc_acceleration(e_field)
-    box = Bbox2(1, 2, 3, 4)
-    particle.set_init_position(box)
-    print('ei')
+    def mirror_particle(self, normal_vec):
+        self.velocity = mirror(self.velocity, normal_vec)
