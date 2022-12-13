@@ -166,7 +166,7 @@ class Topology:
     def _get_current_computing_elements(self):
         fig = plt.figure(num='Current elements choice')
         draw(self.topologies)
-        ax_select_segments = fig.add_axes(rect=[0.77, 0.9, 0.1, 0.05])
+        ax_select_segments = fig.add_axes(rect=[0.77, 0.9, 0.1, 0.05], autoscale_on=True)
         select_segments = Button(ax_select_segments, 'Current')
         select_segments.on_clicked(self._on_click_segments)
         plt.show()

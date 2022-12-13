@@ -16,7 +16,7 @@ from scipy.constants import c, elementary_charge, electron_mass
 from utils.probabilistic_operations import decision, random_number
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments
 
-TEST = False
+TEST = True
 SIGNIFICANT_DIGITS = 6
 RESOLUTION = 1
 BREAK_MAX = 1000
@@ -329,10 +329,11 @@ class System:
             particle.positions[self.simulations_counter - 1].append(particle_pos)
 
 
-def draw_behaviour(desired_sys, simulations):
+def draw_behaviour(desired_sys, simulations: list):
     """
     Draw some achieved particle positions
 
+    :param simulations: simulations positions to be drawn (i.e. [1, 2, 3] will plot the 1°, 2°, and 3° executions)
     :param desired_sys: system to be drawn
     :return: None
     """
@@ -349,6 +350,7 @@ def save_current(current_file: str, meas_current: float, simulated_geometry: str
     """
     Save calculated current
 
+    :param electric_field: applied electric fields as list
     :param current_file: output file
     :param meas_current: calculated current
     :param simulated_geometry: .svg simulated file
