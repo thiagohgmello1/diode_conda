@@ -11,5 +11,5 @@ def drude_analytical_model(
         effective_mass: float,
         e_field: Vector2
 ):
-    e_field = np.sqrt(float(e_field.squared_length()))
+    e_field = -1 * np.sign(float(e_field.x())) * np.sqrt(float(e_field.squared_length()))
     return carrier_concentration * elementary_charge ** 2 * relax_time * e_field * width / effective_mass

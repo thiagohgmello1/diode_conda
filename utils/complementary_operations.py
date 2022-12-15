@@ -90,6 +90,12 @@ def equal(point_1: Point2, point_2: Point2):
     return x_coord and y_coord
 
 
+def round_vec_coord(vec_to_round: Vector2, number_digits: int):
+    x_rounded = round(float(vec_to_round.x()), number_digits)
+    y_rounded = round(float(vec_to_round.y()), number_digits)
+    return Vector2(x_rounded, y_rounded)
+
+
 def create_segments(points_list: list[Point2]) -> list:
     """
     Create sgments from points
