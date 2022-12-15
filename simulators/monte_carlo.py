@@ -13,14 +13,11 @@ from model.material import Material
 from skgeom import Vector2, Point2, Segment2
 from utils.comparable_methods import drude_analytical_model
 from scipy.constants import c, elementary_charge, electron_mass
-from utils.probabilistic_operations import decision, random_number
-from utils.complementary_operations import vec_to_point, calc_normal, create_segments
+from utils.complementary_operations import vec_to_point, calc_normal, create_segments, round_vec_coord
 
-TEST = True
-SIGNIFICANT_DIGITS = 6
-RESOLUTION = 1
+TEST = False
+SIGNIFICANT_DIGITS = 4
 BREAK_MAX = 1000
-SCALE = 10
 matplotlib.use('TkAgg')
 
 
@@ -70,7 +67,8 @@ class System:
         self.time_steps = 0
 
         self.simulations_counter = 0
-        self.significant_digits = -(int(floor(log10(self.material.relax_time)))) + SIGNIFICANT_DIGITS - 1
+        self.significant_digits_time = -(int(floor(log10(self.material.relax_time)))) + SIGNIFICANT_DIGITS
+        self.significant_digits_dist = -(int(floor(log10(self.topology.scale)))) + SIGNIFICANT_DIGITS
 
 
     @staticmethod
@@ -91,27 +89,6 @@ class System:
         for _ in range(number_of_particles):
             particles.append(Particle(density, effective_mass, fermi_velocity))
         return particles
-
-
-    def _set_time_step(self, time_step) -> float:
-        """
-        Set simulation time step
-
-        :param time_step: input time step representing a fraction of relaxation time (if desired)
-        :return: simulation time step
-        """
-        if not time_step:
-            max_e_field = np.sqrt(float(self.e_field.squared_length()))
-            min_dimension = min(
-                [
-                    self.topology.bbox.xmax() - self.topology.bbox.xmin(),
-                    self.topology.bbox.ymax() - self.topology.bbox.ymin()
-                ]
-            )
-            fermi_min = min_dimension / self.material.scalar_fermi_velocity
-            drift_min = np.sqrt(min_dimension * self.particles[0].mass / (max_e_field * abs(self.particles[0].charge)))
-            return float(1 / SCALE * min(fermi_min, drift_min, self.relax_time))
-        return self.relax_time / time_step
 
 
     def set_particle_parameters(self, particle):
@@ -140,38 +117,6 @@ class System:
         """
         for particle in self.particles:
             self.set_particle_parameters(particle)
-
-
-    def _relaxation_event(
-            self,
-            delta_t: float,
-            cumulative_time: float,
-            collision_segment: Segment2
-    ) -> (str, float, Segment2):
-        """
-        Define if relaxation event occurs in time interval
-
-        :param delta_t: time interval
-        :param cumulative_time: cumulative time since the last collision
-        :param collision_segment: segment where particle will collide
-        :return relaxation: string indicating if there is or there is not relaxation event
-        :return delta_t: time interval
-        :return collision_segment: segment where particle will collide if there is no relaxation event
-        """
-        if cumulative_time >= self.relax_time:
-            return 'relax', 0, None
-        else:
-            relax_probability = 1 - np.exp(-cumulative_time / self.relax_time)
-        relaxation = decision(relax_probability)
-
-        if relaxation:
-            delta_t = random_number(0, delta_t)
-            collision_segment = None
-            relaxation = "collide"
-        else:
-            relaxation = "not collide"
-
-        return relaxation, delta_t, collision_segment
 
 
     def simulate(self, model):
@@ -213,25 +158,35 @@ class System:
         particle.acceleration = particle.calc_acceleration(self.e_field)
         particle.velocity += particle.acceleration * self.relax_time
 
-        remaining_time = self.relax_time
+        remaining_time = self.max_time_simulation
         stop_conditions = np.isclose(remaining_time, 0, atol=0)
-        break_counter = 0
+        time_until_relax = self.relax_time
 
-        while (not stop_conditions) and (break_counter < BREAK_MAX):
-            break_counter += 1
-            if remaining_time < 0:
-                print(f'ERROR: {remaining_time}')
+        while not stop_conditions:
             traveled_path = particle.calc_next_position(remaining_time)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, closest_collision_segment = self._calc_closer_intersection(
                 remaining_time, particle.velocity, intersection_points, traveled_path
             )
-            particle.position = particle.position + particle.velocity * lowest_time_to_collision
+            if lowest_time_to_collision > time_until_relax:
+                lowest_time = time_until_relax
+                time_until_relax = self.relax_time
+                relax = True
+            else:
+                lowest_time = lowest_time_to_collision
+                time_until_relax -= lowest_time
+                relax = False
+            pos_vec = particle.position + particle.velocity * lowest_time
+            particle.position = round_vec_coord(pos_vec, self.significant_digits_dist)
             particle_position = Point2(particle.position.x(), particle.position.y())
             segment_normal_vec = calc_normal(closest_collision_segment, particle_position)
+            if relax:
+                particle.set_velocity()
+                particle.velocity += particle.acceleration * self.relax_time
+
             particle.mirror_particle(segment_normal_vec)
-            remaining_time -= lowest_time_to_collision
-            remaining_time = round(remaining_time, self.significant_digits)
+            remaining_time -= lowest_time
+            remaining_time = round(remaining_time, self.significant_digits_time)
 
             if segment_normal_vec:
                 self.collisions += 1
@@ -242,9 +197,7 @@ class System:
                     continue
             self.time_steps += 1
             self.save_particle_data(particle)
-            stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits)
-        if break_counter >= BREAK_MAX:
-            print(f'ERROR: E = {self.e_field}')
+            stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
 
 
     def particle_computation(self, collided_element: Segment2, particle_density: float) -> bool:
@@ -285,7 +238,7 @@ class System:
         for intersection_point, collision_element in intersection_points:
             time_to_collision = self._time_to_collision(particle_velocity, intersection_point, traveled_path)
             if time_to_collision < lowest_time_to_collision:
-                lowest_time_to_collision = time_to_collision * RESOLUTION
+                lowest_time_to_collision = time_to_collision
                 lowest_collision_segment = collision_element
 
         return lowest_time_to_collision, lowest_collision_segment
@@ -375,7 +328,7 @@ if __name__ == '__main__':
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
-    geometry = '../tests/diode7.svg'
+    geometry = '../tests/rectangle.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
@@ -384,7 +337,7 @@ if __name__ == '__main__':
         gate_voltage=gate_voltage
     )
     particle_m = Particle(density=120, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file(geometry, 1e-7)
+    pol = Topology.from_file(geometry, 1e-6)
     e_field = Vector2(-0.5, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
@@ -412,4 +365,4 @@ if __name__ == '__main__':
     print(f'Current:{simulation_current}')
     print(f'Drude current: {drude_analytical_current}')
     print(f'Execution time: {exec_time}')
-    draw_behaviour(system, [i for i in range(1000, 1100)])
+    draw_behaviour(system, [i for i in range(10000, 10100)])
