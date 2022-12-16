@@ -1,17 +1,17 @@
 import numpy as np
-import skgeom as sg
 import matplotlib.pyplot as plt
 
 from skgeom.draw import draw
 from matplotlib.widgets import Button
 from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
-from utils.complementary_operations import calc_distance_between, vec_to_point, equal
+from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
 from utils.probabilistic_operations import random_int_number, random_pos_in_segment
+from utils.complementary_operations import calc_distance_between, vec_to_point, equal
 
 
 class Topology:
-    def __init__(self, topologies: list[sg.Polygon], scale: float):
+    def __init__(self, topologies: list[Polygon], scale: float):
         """
         Create simulated topology
 
@@ -20,7 +20,7 @@ class Topology:
         """
         topologies = self._set_orientation(topologies)
         self.bbox = None
-        self.topologies: sg.PolygonSet = sg.PolygonSet(topologies)
+        self.topologies: PolygonSet = PolygonSet(topologies)
         self.boundaries = dict()
         self._get_boundaries_polygons()
         self.area = self.calc_topology_area()
@@ -54,7 +54,7 @@ class Topology:
         """
         topologies = list()
         for geometry in points:
-            topologies.append(sg.Polygon(cls._create_points(geometry, scale)))
+            topologies.append(Polygon(cls._create_points(geometry, scale)))
         return cls(topologies, scale)
 
     def calc_topology_area(self):
@@ -64,7 +64,7 @@ class Topology:
                 area[boundary_type] += polygon.area()
         return float(area['external'] - area['internal'])
 
-    def contains(self, point: sg.Point2) -> bool:
+    def contains(self, point: Point2) -> bool:
         """
         Check if point is inside geometry
 
@@ -88,7 +88,7 @@ class Topology:
         self.boundaries['external'] = external_boundaries
         self.bbox = self.boundaries['external'][0].bbox()
 
-    def diff_polygon(self, polygon: sg.Polygon):
+    def diff_polygon(self, polygon: Polygon):
         """
         Subtract polygon from topology
 
@@ -101,7 +101,7 @@ class Topology:
         self._get_boundaries_polygons()
         self._get_segments()
 
-    def union_polygon(self, polygon: sg.Polygon):
+    def union_polygon(self, polygon: Polygon):
         """
         Add polygon to topology
 
@@ -137,7 +137,7 @@ class Topology:
         self.segments['internal'] = internal_segments
         self.segments['external'] = external_segments
 
-    def intersection_points(self, traveled_path: sg.Segment2) -> list:
+    def intersection_points(self, traveled_path: Segment2) -> list:
         """
         Define all possible intersection points
 
@@ -148,12 +148,18 @@ class Topology:
         intersection_points = list()
         for segments in self.segments.values():
             for segment in segments:
-                intersection_point = sg.intersection(segment, traveled_path)
+                intersection_point = intersection(segment, traveled_path)
                 if intersection_point and not equal(intersection_point, actual_pos):
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 
-    def get_closer_segment(self, selected_point: sg.Point2):
+    def get_closer_segment(self, selected_point: Point2) -> Segment2:
+        """
+        Get closer segment from desired point
+
+        :param selected_point: desired point
+        :return: closest segment
+        """
         distance = np.inf
         selected_segment = None
         for segments in self.segments.values():
@@ -165,33 +171,65 @@ class Topology:
         return selected_segment
 
     def _get_current_computing_elements(self):
-        fig = plt.figure(num='Current elements choice')
+        plots = {'direct': list(), 'reverse': list()}
+        current_elements = {'direct': list(), 'reverse': list()}
+        fig, ax = plt.subplots(num='Current elements choice', figsize=(9, 6))
         draw(self.topologies)
-        ax_select_segments = fig.add_axes(rect=[0.77, 0.9, 0.1, 0.05])
+        ax_select_segments = fig.add_axes(rect=[0.45, 0.9, 0.1, 0.05])
+
+        def _on_click_segments(event):
+            if event.button is MouseButton.LEFT:
+                self.binding_id = plt.connect('button_press_event', _on_click_event)
+
+
+        def plot_segment(segment: Segment2, color, style: str):
+            p = ax.plot(
+                [segment.source().x(), segment.target().x()],
+                [segment.source().y(), segment.target().y()],
+                color=color
+            )
+            plots[style].append(p[0])
+            plt.draw()
+
+        def _on_click_event(event):
+            if event.button is MouseButton.LEFT and event.xdata and event.ydata:
+                point = Point2(event.xdata, event.ydata)
+                segment = self.get_closer_segment(point)
+                print(segment)
+                if segment not in self.current_computing_elements['direct']:
+                    plot_segment(segment, 'red', 'direct')
+                    self.current_computing_elements['direct'].append(segment)
+                    current_elements['direct'].append(segment)
+                else:
+                    self.current_computing_elements['direct'].remove(segment)
+                    idx = current_elements['direct'].index(segment)
+                    current_elements['direct'].pop(idx)
+                    plot = plots['direct'].pop(idx)
+                    plot.remove()
+                    plt.show()
+
+            elif event.button is MouseButton.RIGHT and event.xdata and event.ydata:
+                point = Point2(event.xdata, event.ydata)
+                segment = self.get_closer_segment(point)
+                print(segment)
+                if segment not in self.current_computing_elements['reverse']:
+                    plot_segment(segment, 'blue', 'reverse')
+                    self.current_computing_elements['reverse'].append(segment)
+                    current_elements['reverse'].append(segment)
+                else:
+                    self.current_computing_elements['reverse'].remove(segment)
+                    idx = current_elements['reverse'].index(segment)
+                    current_elements['reverse'].pop(idx)
+                    plot = plots['reverse'].pop(idx)
+                    plot.remove()
+                    plt.show()
+
         select_segments = Button(ax_select_segments, 'Current')
-        select_segments.on_clicked(self._on_click_segments)
+        select_segments.on_clicked(_on_click_segments)
         plt.show()
 
-    def _on_click_segments(self, event):
-        if event.button is MouseButton.LEFT:
-            self.binding_id = plt.connect('button_press_event', self._on_click_event)
 
-    def _on_click_event(self, event):
-        if event.button is MouseButton.LEFT and event.xdata and event.ydata:
-            point = sg.Point2(event.xdata, event.ydata)
-            segment = self.get_closer_segment(point)
-            print(segment)
-            if segment not in self.current_computing_elements['direct']:
-                self.current_computing_elements['direct'].append(segment)
-        elif event.button is MouseButton.RIGHT and event.xdata and event.ydata:
-            point = sg.Point2(event.xdata, event.ydata)
-            segment = self.get_closer_segment(point)
-            print(segment)
-            if segment not in self.current_computing_elements['reverse']:
-                self.current_computing_elements['reverse'].append(segment)
-
-
-    def random_segment_pos(self, elements_list: str) -> sg.Point2:
+    def random_segment_pos(self, elements_list: str) -> Point2:
         """
         Generate random position in a random current element
 
@@ -205,7 +243,7 @@ class Topology:
 
 
     @staticmethod
-    def _set_orientation(polygons: list[sg.Polygon]) -> list:
+    def _set_orientation(polygons: list[Polygon]) -> list:
         """
         Set polygons orientation
 
@@ -228,5 +266,5 @@ class Topology:
         points = list()
         for point in points_list:
             point = [float(p) * scale for p in point]
-            points.append(sg.Point2(point[0], point[1]))
+            points.append(Point2(point[0], point[1]))
         return points
