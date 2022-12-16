@@ -15,7 +15,7 @@ from utils.comparable_methods import drude_analytical_model
 from scipy.constants import c, elementary_charge, electron_mass
 from utils.complementary_operations import vec_to_point, calc_normal, create_segments, round_vec_coord, point_to_vec
 
-TEST = True
+TEST = False
 SIGNIFICANT_DIGITS = 4
 BREAK_MAX = 1000
 matplotlib.use('TkAgg')

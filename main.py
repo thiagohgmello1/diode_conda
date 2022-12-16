@@ -35,7 +35,7 @@ def plot_figs(asy_voltages, curr_voltages, asy, curr, drude_curr):
     plt.plot(asy_voltages, asy)
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
     plt.ylim(ymin=0)
-    plt.savefig('outputs/asymmetry.png', dpi=fig_asymmetry.dpi)
+    plt.savefig(f'outputs/asymmetry.png', dpi=fig_asymmetry.dpi)
 
     fig_iv = plt.figure(figsize=(12, 6))
     plt.plot(curr_voltages, curr, '--r', marker='o')
@@ -43,7 +43,7 @@ def plot_figs(asy_voltages, curr_voltages, asy, curr, drude_curr):
         plt.plot(curr_voltages, drude_curr, '--', color='blue')
     plt.grid(True)
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
-    plt.savefig('outputs/currents.png', dpi=fig_iv.dpi)
+    plt.savefig(f'outputs/currents.png', dpi=fig_iv.dpi)
 
 
 if __name__ == '__main__':
@@ -51,22 +51,27 @@ if __name__ == '__main__':
     drude_currents = list()
     voltages = list()
 
+    scale = 1e-7
+    max_collisions = 100000
     voltage = np.linspace(-0.5, 0.5, num=11)
     f_velocity = c / 300
     MFPL = 500e-9
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
-    geometry = 'tests/rectangle.svg'
+    density = 150
+    material_permittivity = 3.9
+    geometry = 'tests/diode8.svg'
+
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
-        permittivity=3.9,
+        permittivity=material_permittivity,
         substrate_thickness=thickness,
         gate_voltage=gate_voltage
     )
-    particle_m = Particle(density=150, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file(geometry, 1e-6)
+    particle_m = Particle(density=density, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
+    pol = Topology.from_file(geometry, scale)
 
     exec_time = time.time()
 
@@ -79,7 +84,7 @@ if __name__ == '__main__':
             topology=pol,
             material=mat,
             electric_field=e_field,
-            max_collisions=100000,
+            max_collisions=max_collisions,
             max_time_simulation=mat.relax_time
         )
         system.simulate(system.simulate_drude)
