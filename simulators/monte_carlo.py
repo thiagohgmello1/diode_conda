@@ -13,9 +13,9 @@ from model.material import Material
 from skgeom import Vector2, Point2, Segment2
 from utils.comparable_methods import drude_analytical_model
 from scipy.constants import c, elementary_charge, electron_mass
-from utils.complementary_operations import vec_to_point, calc_normal, create_segments, round_vec_coord
+from utils.complementary_operations import vec_to_point, calc_normal, create_segments, round_vec_coord, point_to_vec
 
-TEST = False
+TEST = True
 SIGNIFICANT_DIGITS = 4
 BREAK_MAX = 1000
 matplotlib.use('TkAgg')
@@ -28,7 +28,6 @@ class System:
             topology: Topology,
             material: Material,
             electric_field: Vector2,
-            max_simulations: float = np.inf,
             number_of_particles: int = None,
             max_time_simulation: float = np.inf,
             max_collisions: float = np.inf,
@@ -41,13 +40,11 @@ class System:
         :param topology: desired topology
         :param material: material to topology
         :param electric_field: defined or calculated electric field created by applied voltage in topology [V/m]
-        :param max_simulations: number of simulated particles
         :param number_of_particles: number of particles (defined by the number of cores if not defined)
         :param max_time_simulation: maximum time to simulation [s]
         :param max_collisions: defined maximum accepted collisions. Stop criteria
         :param max_time_steps: defined maximum time steps. Stop criteria [s]
         """
-        self.max_simulations = max_simulations
         self.particles = self.create_particles(particle, number_of_particles)
         self.topology = topology
         self.material = material
@@ -143,78 +140,126 @@ class System:
         """
         time_steps_condition = self.time_steps < self.max_time_steps
         collisions_condition = self.collisions < self.max_collisions
-        simulations_condition = self.simulations_counter < self.max_simulations
 
-        return time_steps_condition and collisions_condition and simulations_condition
+        return time_steps_condition and collisions_condition
 
 
     def simulate_drude(self, particle: Particle):
         """
         Simulate Drude event
 
-        :param particle: particle to be simulated
+        :param particle: macroparticle to be simulated
         :return: None
         """
-        particle.acceleration = particle.calc_acceleration(self.e_field)
-        particle.velocity += particle.acceleration * self.relax_time
+        drift_velocity = -1 * particle.calc_drift_velocity(self.material.mobility, self.e_field)
+        particle.velocity += drift_velocity
 
         remaining_time = self.max_time_simulation
         stop_conditions = np.isclose(remaining_time, 0, atol=0)
-        time_until_relax = self.relax_time
+        time_until_relax = round(self.relax_time, self.significant_digits_time)
 
         while not stop_conditions:
             traveled_path = particle.calc_next_position(remaining_time)
             intersection_points = self.topology.intersection_points(traveled_path)
-            lowest_time_to_collision, closest_collision_segment = self._calc_closer_intersection(
+            lowest_time_to_collision, closest_collision_segment, next_pos = self._calc_closer_intersection(
                 remaining_time, particle.velocity, intersection_points, traveled_path
             )
-            if lowest_time_to_collision > time_until_relax:
-                lowest_time = time_until_relax
-                time_until_relax = self.relax_time
-                relax = True
+            closest_collision_segment, lowest_time, time_until_relax, relax = self.check_relaxation_event(
+                closest_collision_segment, lowest_time_to_collision, time_until_relax
+            )
+            if next_pos and not relax:
+                particle.position = next_pos
             else:
-                lowest_time = lowest_time_to_collision
-                time_until_relax -= lowest_time
-                relax = False
-            pos_vec = particle.position + particle.velocity * lowest_time
-            particle.position = round_vec_coord(pos_vec, self.significant_digits_dist)
+                pos_vec = particle.position + particle.velocity * lowest_time
+                particle.position = round_vec_coord(pos_vec, self.significant_digits_dist)
+
             particle_position = Point2(particle.position.x(), particle.position.y())
             segment_normal_vec = calc_normal(closest_collision_segment, particle_position)
             if relax:
                 particle.set_velocity()
-                particle.velocity += particle.acceleration * self.relax_time
+                particle.velocity += drift_velocity
 
-            particle.mirror_particle(segment_normal_vec)
+            self.check_current_collision(particle, closest_collision_segment, segment_normal_vec)
+
             remaining_time -= lowest_time
             remaining_time = round(remaining_time, self.significant_digits_time)
 
-            if segment_normal_vec:
-                self.collisions += 1
-                current_collision = self.particle_computation(closest_collision_segment, particle.density)
-                if current_collision:
-                    stop_conditions = True
-                    self.save_particle_data(particle)
-                    continue
             self.time_steps += 1
             self.save_particle_data(particle)
             stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
 
 
-    def particle_computation(self, collided_element: Segment2, particle_density: float) -> bool:
+    def check_relaxation_event(self, closest_collision_segment, lowest_time_to_collision, time_until_relax):
+        """
+        Check if occurred relaxation event during time interval
+
+        :param closest_collision_segment: closest collided segment
+        :param lowest_time_to_collision: lowest time until collision happens (if it happens)
+        :param time_until_relax: time interval until next relaxation event
+        :return closest_collision_segment: closest collided segment
+        :return lowest_time: lowest acceptable time interval to the next iteration
+        :return time_until_relax: remaining time until relaxation event
+        :return relax: boolean indicating if relaxation event has occurred
+        """
+        if lowest_time_to_collision > time_until_relax:
+            closest_collision_segment = None
+            lowest_time = time_until_relax
+            time_until_relax = round(self.relax_time, self.significant_digits_time)
+            relax = True
+        else:
+            lowest_time = lowest_time_to_collision
+            time_until_relax -= lowest_time
+            time_until_relax = round(time_until_relax, self.significant_digits_time)
+            relax = False
+        return closest_collision_segment, lowest_time, time_until_relax, relax
+
+
+    def check_current_collision(self, particle, closest_collision_segment, segment_normal_vec):
+        """
+        Check if macroparticle collide with current computation segment
+
+        :param particle: travelled particle
+        :param closest_collision_segment: collided segment
+        :param segment_normal_vec: collided segment normal vector
+        :return: None
+        """
+        if segment_normal_vec:
+            self.collisions += 1
+            current_collision, element = self.particle_computation(closest_collision_segment, particle.density)
+            if current_collision:
+                self.save_particle_data(particle)
+                self.teleport_particle(particle, element)
+            else:
+                particle.mirror_particle(segment_normal_vec)
+
+
+    def particle_computation(self, collided_element: Segment2, particle_density: float) -> tuple[bool, str]:
         """
         Compute collisions in current elements
 
         :param collided_element: collided geometry segment
         :param particle_density: particle density
         :return: boolean indicating if there was rectification
+        :return: string indicating segment group
         """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
             self.particle_counter += particle_density
-            return True
+            return True, 'reverse'
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
             self.particle_counter -= particle_density
-            return True
-        return False
+            return True, 'direct'
+        return False, ''
+
+
+    def teleport_particle(self, particle: Particle, element: str):
+        """
+        Teleport particle to opposite current segment
+        :param particle: travelled macroparticle
+        :param element: segment current group (i.e. 'direct' or 'reverse')
+        :return: None
+        """
+        pos = self.topology.random_segment_pos(element)
+        particle.position = point_to_vec(pos)
 
 
     def _calc_closer_intersection(
@@ -234,14 +279,16 @@ class System:
         :return lowest_collision_segment: collided segment
         """
         lowest_time_to_collision = remaining_time
+        next_pos = None
         lowest_collision_segment = None
         for intersection_point, collision_element in intersection_points:
             time_to_collision = self._time_to_collision(particle_velocity, intersection_point, traveled_path)
             if time_to_collision < lowest_time_to_collision:
                 lowest_time_to_collision = time_to_collision
                 lowest_collision_segment = collision_element
+                next_pos = intersection_point
 
-        return lowest_time_to_collision, lowest_collision_segment
+        return lowest_time_to_collision, lowest_collision_segment, next_pos
 
 
     def cal_current(self):
@@ -282,7 +329,7 @@ class System:
             particle.positions[self.simulations_counter - 1].append(particle_pos)
 
 
-def draw_behaviour(desired_sys, simulations: list):
+def draw_behaviour(desired_sys, simulations: list = None):
     """
     Draw some achieved particle positions
 
@@ -290,6 +337,8 @@ def draw_behaviour(desired_sys, simulations: list):
     :param desired_sys: system to be drawn
     :return: None
     """
+    if not simulations:
+        simulations = range(0, len(desired_sys.particles[0].positions))
     if TEST:
         draw(desired_sys.topology.topologies)
         segments_to_print = list()
@@ -317,6 +366,13 @@ def save_current(current_file: str, meas_current: float, simulated_geometry: str
 
 
 def progress_bar(progress, total):
+    """
+    Print progress bar
+
+    :param progress: evolved situation
+    :param total: expect max situation
+    :return: None
+    """
     percent = 100 * (progress / total)
     bar = '█' * int(percent) + '-' * (100 - int(percent))
     print(f'\r|{bar}| {percent:.2f}%', end='\r')
@@ -328,7 +384,7 @@ if __name__ == '__main__':
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
-    geometry = '../tests/rectangle.svg'
+    geometry = '../tests/diode8.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
@@ -337,14 +393,14 @@ if __name__ == '__main__':
         gate_voltage=gate_voltage
     )
     particle_m = Particle(density=120, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file(geometry, 1e-6)
+    pol = Topology.from_file(geometry, 1e-7)
     e_field = Vector2(-0.5, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
         topology=pol,
         material=mat,
         electric_field=e_field,
-        max_collisions=100000,
+        max_collisions=100,
         max_time_simulation=mat.relax_time
     )
     exec_time = time.time()
@@ -365,4 +421,5 @@ if __name__ == '__main__':
     print(f'Current:{simulation_current}')
     print(f'Drude current: {drude_analytical_current}')
     print(f'Execution time: {exec_time}')
-    draw_behaviour(system, [i for i in range(10000, 10100)])
+    draw_behaviour(system, [i for i in range(0, 100)])
+    # draw_behaviour(system)

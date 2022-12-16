@@ -77,6 +77,16 @@ def vec_to_point(vector: Vector2) -> Point2:
     return Point2(vector.x(), vector.y())
 
 
+def point_to_vec(point: Point2) -> Vector2:
+    """
+    Convert point to vector
+
+    :param point: point to be converted
+    :return: point as a vector
+    """
+    return Vector2(float(point.x()), float(point.y()))
+
+
 def equal(point_1: Point2, point_2: Point2):
     """
     Check if two points are equal
@@ -110,13 +120,25 @@ def create_segments(points_list: list[Point2]) -> list:
 
 
 def calc_distance_between(segment: Segment2, point: Point2):
-    line_p_1 = segment[0]
-    line_p_2 = segment[1]
-    numerator = np.linalg.norm(
-        float(
-            (line_p_2.x() - line_p_1.x()) * (line_p_1.y() - point.y())
-            - (line_p_1.x() - point.x()) * (line_p_2.y() - line_p_1.y())
+    point_1 = segment[0]
+    point_2 = segment[1]
+    z_numerator = (point - point_1)
+    z_numerator = np.sqrt(float(z_numerator.x()) ** 2 + float(z_numerator.y()) ** 2)
+    z_denominator = (point_2 - point_1)
+    z_denominator = np.sqrt(float(z_denominator.x()) ** 2 + float(z_denominator.y()) ** 2)
+    z = z_numerator / z_denominator
+    if z <= 1:
+        numerator = abs(
+            float(
+                (point_2.x() - point_1.x()) * (point_1.y() - point.y())
+                - (point_1.x() - point.x()) * (point_2.y() - point_1.y())
+            )
         )
-    )
-    denominator = np.sqrt(float((line_p_2.x() - line_p_1.x())) ** 2 + float((line_p_2.y() - line_p_1.y())) ** 2)
-    return numerator / denominator
+        denominator = np.sqrt(float((point_2.x() - point_1.x())) ** 2 + float((point_2.y() - point_1.y())) ** 2)
+        return numerator / denominator
+    else:
+        dist_1 = point - point_1
+        dist_1 = np.sqrt(float(dist_1.x()) ** 2 + float(dist_1.y()) ** 2)
+        dist_2 = point - point_2
+        dist_2 = np.sqrt(float(dist_2.x()) ** 2 + float(dist_2.y()) ** 2)
+        return min(dist_1, dist_2)

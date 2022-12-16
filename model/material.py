@@ -7,6 +7,7 @@ class Material:
             self,
             mean_free_path: float,
             scalar_fermi_velocity: float,
+            mobility: float = None,
             substrate_thickness: float = 1,
             relax_time: float = None,
             gate_voltage: float = 10,
@@ -19,6 +20,7 @@ class Material:
 
         :param mean_free_path: material mean free path (Lambda_{MFP})
         :param scalar_fermi_velocity: defined scalar Fermi velocity
+        :param mobility: electron mobility [m^2/(Vs)]
         :param substrate_thickness: substrate thickness (responsible from carrier concentration)
         :param relax_time: relaxation time (if desired to define)
         :param gate_voltage: applied gate voltage
@@ -36,6 +38,7 @@ class Material:
         )
         self.effective_mass = self._calc_effective_mass()
         self._calc_relax_time()
+        self.mobility = self._calc_mobility(mobility)
 
     def _calc_carrier_concentration(self, gate_voltage, substrate_thickness, carrier_concentration) -> float:
         """
@@ -66,3 +69,16 @@ class Material:
         """
         if not self.relax_time:
             self.relax_time = self.mean_free_path / self.scalar_fermi_velocity
+
+
+    def _calc_mobility(self, mobility):
+        """
+        Calculate material mobility
+
+        :param mobility: input mobility (if specified)
+        :return: mobility
+        """
+        if not mobility:
+            return elementary_charge * self.relax_time / (self.effective_mass * electron_mass)
+        else:
+            return mobility

@@ -7,6 +7,7 @@ from matplotlib.widgets import Button
 from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
 from utils.complementary_operations import calc_distance_between, vec_to_point, equal
+from utils.probabilistic_operations import random_int_number, random_pos_in_segment
 
 
 class Topology:
@@ -179,13 +180,29 @@ class Topology:
         if event.button is MouseButton.LEFT and event.xdata and event.ydata:
             point = sg.Point2(event.xdata, event.ydata)
             segment = self.get_closer_segment(point)
+            print(segment)
             if segment not in self.current_computing_elements['direct']:
                 self.current_computing_elements['direct'].append(segment)
         elif event.button is MouseButton.RIGHT and event.xdata and event.ydata:
             point = sg.Point2(event.xdata, event.ydata)
             segment = self.get_closer_segment(point)
+            print(segment)
             if segment not in self.current_computing_elements['reverse']:
                 self.current_computing_elements['reverse'].append(segment)
+
+
+    def random_segment_pos(self, elements_list: str) -> sg.Point2:
+        """
+        Generate random position in a random current element
+
+        :param elements_list: list of elements (can be 'direct' or 'reverse')
+        :return: random position in random segment
+        """
+        possible_segments = self.current_computing_elements[elements_list]
+        rand_pos = random_int_number(0, len(possible_segments) - 1)
+        segment = possible_segments[rand_pos]
+        return random_pos_in_segment(segment)
+
 
     @staticmethod
     def _set_orientation(polygons: list[sg.Polygon]) -> list:

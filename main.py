@@ -38,9 +38,10 @@ def plot_figs(asy_voltages, curr_voltages, asy, curr, drude_curr):
     plt.savefig('outputs/asymmetry.png', dpi=fig_asymmetry.dpi)
 
     fig_iv = plt.figure(figsize=(12, 6))
-    plt.plot(curr_voltages, curr, 'o', color='red')
+    plt.plot(curr_voltages, curr, '--r', marker='o')
     if len(drude_curr) > 0:
         plt.plot(curr_voltages, drude_curr, '--', color='blue')
+    plt.grid(True)
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
     plt.savefig('outputs/currents.png', dpi=fig_iv.dpi)
 
@@ -56,7 +57,7 @@ if __name__ == '__main__':
     carrier_c = 7.2e15
     thickness = 300e-9
     gate_voltage = 10
-    geometry = 'tests/diode8.svg'
+    geometry = 'tests/rectangle.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
@@ -65,7 +66,7 @@ if __name__ == '__main__':
         gate_voltage=gate_voltage
     )
     particle_m = Particle(density=150, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file(geometry, 1e-7)
+    pol = Topology.from_file(geometry, 1e-6)
 
     exec_time = time.time()
 

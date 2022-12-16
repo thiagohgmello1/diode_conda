@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from skgeom import Point2, Segment2
 
 # random.seed(13548)
 
@@ -43,3 +44,29 @@ def random_number(min_value, max_value) -> float:
     :return: random number
     """
     return random.uniform(min_value, max_value)
+
+
+def random_int_number(min_value, max_value) -> int:
+    """
+    Generate random int number
+
+    :param min_value: minimum acceptable int value
+    :param max_value: maximum acceptable int value
+    :return: random int number
+    """
+    return random.randint(min_value, max_value)
+
+
+def random_pos_in_segment(segment: Segment2) -> Point2:
+    """
+    Generate a random position in a segment
+
+    :param segment: Segment to guide point generation
+    :return: random point in segment
+    """
+    point_1 = segment[0]
+    point_2 = segment[1]
+    u = random_number(0, 1)
+    p_x = (1 - u) * float(point_1.x()) + u * float(point_2.x())
+    p_y = (1 - u) * float(point_1.y()) + u * float(point_2.y())
+    return Point2(p_x, p_y)

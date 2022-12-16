@@ -28,6 +28,7 @@ class Particle:
         self.position = position
         self.positions = list()
 
+
     def set_init_position(self, bbox: Bbox2):
         """
         Set particle initial position into box bbox
@@ -39,6 +40,7 @@ class Particle:
         max_range = (bbox.xmax(), bbox.ymax())
         self.position = Vector2(*random_vec(min_value=min_range, max_value=max_range, is_normalized=False))
 
+
     def set_velocity(self):
         """
         Set particle random Fermi velocity
@@ -47,6 +49,7 @@ class Particle:
         """
         self.fermi_velocity = Vector2(*random_vec()) * self.scalar_fermi_velocity
         self.velocity = self.fermi_velocity
+
 
     def calc_acceleration(self, electric_field: Vector2) -> Vector2:
         """
@@ -57,6 +60,7 @@ class Particle:
         """
         acceleration = electric_field * (self.charge / self.mass)
         return acceleration
+
 
     def calc_next_position(self, delta_t: float) -> Segment2:
         """
@@ -73,4 +77,22 @@ class Particle:
 
 
     def mirror_particle(self, normal_vec):
+        """
+        Mirror particle when collide with segment
+
+        :param normal_vec: collided segment normal vector
+        :return: mirrored velocity
+        """
         self.velocity = mirror(self.velocity, normal_vec)
+
+
+    @staticmethod
+    def calc_drift_velocity(mobility: float, electric_field: Vector2) -> Vector2:
+        """
+        Calculate particle drift velocity
+
+        :param mobility: material mobility
+        :param electric_field: applied electric field
+        :return: drift velocity
+        """
+        return mobility * electric_field
