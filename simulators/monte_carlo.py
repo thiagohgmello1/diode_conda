@@ -123,9 +123,10 @@ class System:
         :param model: desired model to simulate. Must be a method callback (ex.: simulate_drude method)
         :return: None
         """
+        self.set_particle_parameters(self.particles[0])
         while self._calc_stop_conditions():
+            self.particles[0].set_velocity()
             self.total_macro_particles += self.particles[0].density
-            self.set_particle_parameters(self.particles[0])
             self.simulations_counter += 1
             model(self.particles[0])
             progress_bar(self.collisions, self.max_collisions)
@@ -154,7 +155,7 @@ class System:
         drift_velocity = -1 * particle.calc_drift_velocity(self.material.mobility, self.e_field)
         particle.velocity += drift_velocity
 
-        remaining_time = self.max_time_simulation
+        remaining_time = self.material.mean_free_path / np.sqrt(float(particle.velocity.squared_length()))
         stop_conditions = np.isclose(remaining_time, 0, atol=0)
         time_until_relax = round(self.relax_time, self.significant_digits_time)
 
@@ -174,6 +175,8 @@ class System:
                 particle.position = round_vec_coord(pos_vec, self.significant_digits_dist)
 
             particle_position = Point2(particle.position.x(), particle.position.y())
+            if not self.topology.contains(particle_position):
+                raise Exception('ERROR')
             segment_normal_vec = calc_normal(closest_collision_segment, particle_position)
             if relax:
                 particle.set_velocity()

@@ -181,7 +181,6 @@ class Topology:
             if event.button is MouseButton.LEFT:
                 self.binding_id = plt.connect('button_press_event', _on_click_event)
 
-
         def plot_segment(segment: Segment2, color, style: str):
             p = ax.plot(
                 [segment.source().x(), segment.target().x()],

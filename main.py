@@ -53,7 +53,7 @@ if __name__ == '__main__':
 
     scale = 1e-7
     max_collisions = 100000
-    voltage = np.linspace(-0.5, 0.5, num=11)
+    voltage = np.linspace(-1, 1, num=21)
     f_velocity = c / 300
     MFPL = 500e-9
     carrier_c = 7.2e15
@@ -61,7 +61,7 @@ if __name__ == '__main__':
     gate_voltage = 10
     density = 150
     material_permittivity = 3.9
-    geometry = 'tests/diode8.svg'
+    geometry = 'tests/diode11.svg'
 
     mat = Material(
         mean_free_path=MFPL,
