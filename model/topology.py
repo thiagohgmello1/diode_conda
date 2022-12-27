@@ -7,7 +7,8 @@ from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
 from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
 from utils.probabilistic_operations import random_int_number, random_pos_in_segment
-from utils.complementary_operations import calc_distance_between, vec_to_point, equal
+from utils.complementary_operations import calc_distance_between, vec_to_point, equal, calc_normal, segment_to_vec, \
+    dot_prod
 
 
 class Topology:
@@ -144,12 +145,15 @@ class Topology:
         :param traveled_path: line segment eventually travelled by particle
         :return: all possible intersection points
         """
-        actual_pos = vec_to_point(traveled_path[0])
+        actual_pos = traveled_path[0]
         intersection_points = list()
+        pos_vec = segment_to_vec(traveled_path)
         for segments in self.segments.values():
             for segment in segments:
                 intersection_point = intersection(segment, traveled_path)
-                if intersection_point and not equal(intersection_point, actual_pos):
+                segment_normal_vec = calc_normal(segment, actual_pos)
+                segments_product = dot_prod(pos_vec, segment_normal_vec)
+                if intersection_point and segments_product < 0:
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 

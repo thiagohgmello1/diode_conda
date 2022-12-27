@@ -53,21 +53,21 @@ if __name__ == '__main__':
 
     scale = 1e-7
     max_collisions = 100000
-    voltage = np.linspace(-1, 1, num=21)
+    voltage = np.linspace(-0.5, 0.5, num=11)
     f_velocity = c / 300
     MFPL = 500e-9
     carrier_c = 7.2e15
-    thickness = 300e-9
+    sub_thickness = 300e-9
     gate_voltage = 10
     density = 150
     material_permittivity = 3.9
-    geometry = 'tests/diode11.svg'
+    geometry = 'tests/diode12.svg'
 
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
         permittivity=material_permittivity,
-        substrate_thickness=thickness,
+        substrate_thickness=sub_thickness,
         gate_voltage=gate_voltage
     )
     particle_m = Particle(density=density, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)

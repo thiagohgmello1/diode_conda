@@ -87,6 +87,10 @@ def point_to_vec(point: Point2) -> Vector2:
     return Vector2(float(point.x()), float(point.y()))
 
 
+def segment_to_vec(segment: Segment2) -> Vector2:
+    return Vector2(segment[0], segment[1])
+
+
 def equal(point_1: Point2, point_2: Point2):
     """
     Check if two points are equal
