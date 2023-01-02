@@ -3,7 +3,7 @@ import numpy as np
 
 class Point2:
     def __repr__(self):
-        return f'{self.array}'
+        return f'Point2({self.array[0]}, {self.array[1]})'
 
 
     def __sub__(self, other):
@@ -32,13 +32,36 @@ class Point2:
         :param other:
         :return: boolean
         """
-        return self.x == other.x and self.y == other.y
+        return all(self.array == other.array)
+
+
+    def __truediv__(self, other):
+        return self.array / other.array
+
+
+    def __copy__(self):
+        return Point2(self.x, self.y)
 
 
     def __init__(self, x: float, y: float):
         self.x = x
         self.y = y
         self.array = np.array([self.x, self.y])
+
+
+    def length(self):
+        return np.linalg.norm(self.array)
+
+
+    def closer_point(self, points_list: list):
+        closer_p = None
+        closer_dist = np.inf
+        for point in points_list:
+            dist = (self - point).length()
+            if dist < closer_dist:
+                closer_p = point
+                closer_dist = dist
+        return closer_p
 
 
 if __name__ == '__main__':

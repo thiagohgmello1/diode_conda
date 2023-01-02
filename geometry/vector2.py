@@ -4,33 +4,27 @@ from geometry.point2 import Point2
 
 class Vector2:
     def __repr__(self):
-        return f'{self.array}'
+        return f'Vector2({self.x}, {self.y})'
 
 
     def __add__(self, other):
-        x = self.x + other.x
-        y = self.y + other.y
-        return Vector2(x, y)
+        return Vector2(self.array + other.array)
 
 
     def __sub__(self, other):
-        x = self.x - other.x
-        y = self.y - other.y
-        return Vector2(x, y)
+        return Vector2(self.array - other.array)
 
 
     def __mul__(self, other):
-        x = self.x * other
-        y = self.y * other
-        return Vector2(x, y)
+        return Vector2(self.array * other)
 
 
     def __eq__(self, other):
-        return self.x == other.x and self.y == other.y
+        return all(self.array == other.array)
 
 
-    def __truediv__(self, other: float):
-        return Vector2(self.x / other, self.y / other)
+    def __truediv__(self, other):
+        return Vector2(self.array / other)
 
 
     def __init__(self, *args):
@@ -53,11 +47,31 @@ class Vector2:
 
 
     def cross_prod(self, other):
-        return np.cross(self.array, other.array)
+        return float(np.cross(self.array, other.array))
 
 
-    def norm2(self):
+    def length(self):
         return np.linalg.norm(self.array)
+
+
+    def rotate(self, ang: float):
+        cos_ang = np.cos(ang)
+        sin_ang = np.sin(ang)
+        rotate_matrix = np.array([[cos_ang, -1 * sin_ang], [sin_ang, cos_ang]])
+        return Vector2(np.dot(rotate_matrix, self.array))
+
+
+    def normalize(self):
+        norm = self.length()
+        return Vector2(self.array / norm)
+
+
+    def to_point(self):
+        return Point2(self.array[0], self.array[1])
+
+
+    def perpendicular(self):
+        return self.rotate(np.pi / 2)
 
 
 if __name__ == '__main__':
@@ -67,13 +81,17 @@ if __name__ == '__main__':
     vec_point2 = Vector2(p1)
     vec_ar1 = Vector2(np.array([4, 5]))
     vec_ar2 = Vector2(np.array([4, 5]))
-    vec_float = Vector2(1, 1)
+    vec_float = Vector2(0, 1)
     print(vec_point1 + vec_point2)
     print(vec_point1 - vec_point2)
     print(vec_point1 * 2)
     print(vec_point1 == vec_ar1)
     print(vec_ar1 == vec_ar2)
     print(vec_ar1 / 2)
-    print(Vector2.dot_prod(vec_float, vec_ar1))
-    print(Vector2.cross_prod(vec_float, vec_ar1))
-    print(Vector2.norm2(vec_float))
+    print(vec_float.dot_prod(vec_ar1))
+    print(vec_float.cross_prod(vec_ar1))
+    print(vec_ar1.cross_prod(vec_float))
+    print(vec_float.length())
+    print(vec_float.rotate(np.pi / 2))
+    print(vec_ar1.normalize())
+    print(vec_ar1.to_point())

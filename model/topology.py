@@ -7,8 +7,7 @@ from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
 from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
 from utils.probabilistic_operations import random_int_number, random_pos_in_segment
-from utils.complementary_operations import calc_distance_between, vec_to_point, equal, calc_normal, segment_to_vec, \
-    dot_prod
+from utils.complementary_operations import calc_distance_between, calc_normal, segment_to_vec, dot_prod
 
 
 class Topology:
