@@ -51,24 +51,29 @@ if __name__ == '__main__':
     drude_currents = list()
     voltages = list()
 
-    scale = 1e-7
-    max_collisions = 100000
-    voltage = np.linspace(-0.5, 0.5, num=11)
-    f_velocity = c / 300
-    MFPL = 500e-9
-    carrier_c = 7.2e15
-    sub_thickness = 300e-9
+    MFPL = 200e-9
+    mobility = 4
+    carrier_c = None
     gate_voltage = 10
-    density = 150
+    f_velocity = c / 300
+    sub_thickness = 300e-9
     material_permittivity = 3.9
-    geometry = 'tests/diode12.svg'
+
+    density = 1
+    scale = 1e-7
+    geometry = 'tests/rectangle.svg'
+
+    max_collisions = 100000
+    voltage = np.linspace(-1, 1, num=11)
 
     mat = Material(
+        mobility=mobility,
         mean_free_path=MFPL,
+        gate_voltage=gate_voltage,
+        carrier_concentration=carrier_c,
         scalar_fermi_velocity=f_velocity,
-        permittivity=material_permittivity,
         substrate_thickness=sub_thickness,
-        gate_voltage=gate_voltage
+        permittivity=material_permittivity
     )
     particle_m = Particle(density=density, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file(geometry, scale)
@@ -80,9 +85,9 @@ if __name__ == '__main__':
         vol = [vol, 0]
         e_field = Vector2(*vol) / (pol.bbox.xmax() - pol.bbox.xmin())
         system = System(
-            particle=particle_m,
             topology=pol,
             material=mat,
+            particle=particle_m,
             electric_field=e_field,
             max_collisions=max_collisions,
             max_time_simulation=mat.relax_time
@@ -92,19 +97,21 @@ if __name__ == '__main__':
         currents.append(simulation_current)
         save_current('outputs/currents.csv', simulation_current, geometry, vol)
 
+        print(f'Voltage: {-vol[0]}')
+        print(f'Current:{simulation_current}')
+
         if 'rectangle' in geometry:
             drude_current = drude_analytical_model(
+                e_field=e_field,
+                relax_time=np.mean(system.simulated_time),
                 width=float(pol.bbox.ymax() - pol.bbox.ymin()),
-                relax_time=mat.relax_time,
                 carrier_concentration=mat.carrier_concentration,
-                effective_mass=mat.effective_mass * electron_mass,
-                e_field=e_field
+                effective_mass=mat.effective_mass * electron_mass
             )
             save_current('outputs/currents.csv', drude_current, geometry, vol)
             drude_currents.append(drude_current)
+            print(f'Drude current: {drude_current}')
 
-        print(f'Voltage: {-vol[0]}')
-        print(f'Current:{simulation_current}')
         print(f'Time steps: {system.time_steps}')
         print(f'Collisions: {system.collisions}')
         print(f'-' * 100)

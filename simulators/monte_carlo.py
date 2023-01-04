@@ -13,7 +13,7 @@ from model.material import Material
 from skgeom import Vector2, Point2, Segment2
 from utils.comparable_methods import drude_analytical_model
 from scipy.constants import c, elementary_charge, electron_mass
-from utils.complementary_operations import vec_to_point, calc_normal, create_segments, point_to_vec
+from utils.complementary_operations import vec_to_point, point_to_vec, calc_normal, create_segments
 
 TEST = False
 SIGNIFICANT_DIGITS = 4
@@ -65,7 +65,6 @@ class System:
 
         self.simulations_counter = 0
         self.significant_digits_time = -(int(floor(log10(self.material.relax_time)))) + SIGNIFICANT_DIGITS
-        self.significant_digits_dist = -(int(floor(log10(self.topology.scale)))) + SIGNIFICANT_DIGITS
 
 
     @staticmethod
@@ -95,7 +94,6 @@ class System:
         :param particle: particle to be started
         :return: None
         """
-        particle.set_velocity()
         particle.set_init_position(self.topology.bbox)
         init_pos = vec_to_point(particle.position)
 
@@ -104,16 +102,6 @@ class System:
             init_pos = vec_to_point(particle.position)
         if TEST:
             particle.positions.append([init_pos])
-
-
-    def set_particles_parameters(self):
-        """
-        Set particles initial parameters
-
-        :return: None
-        """
-        for particle in self.particles:
-            self.set_particle_parameters(particle)
 
 
     def simulate(self, model):
@@ -155,8 +143,8 @@ class System:
         drift_velocity = -1 * particle.calc_drift_velocity(self.material.mobility, self.e_field)
         particle.velocity += drift_velocity
 
-        # remaining_time = self.material.mean_free_path / np.sqrt(float(particle.velocity.squared_length()))
-        remaining_time = self.relax_time
+        remaining_time = self.material.mean_free_path / np.sqrt(float(particle.velocity.squared_length()))
+        self.simulated_time.append(remaining_time)
         stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
 
         while not stop_conditions:
@@ -165,13 +153,13 @@ class System:
             lowest_time_to_collision, closest_collision_segment, next_pos, relax = self._calc_closer_intersection(
                 remaining_time, particle.velocity, intersection_points, traveled_path, particle
             )
+            particle_p0 = vec_to_point(particle.position)
             particle.position = next_pos
-            particle_position_point = Point2(particle.position.x(), particle.position.y())
 
-            if not self.topology.contains(particle_position_point):
+            if not self.topology.contains(vec_to_point(particle.position)):
                 raise Exception('Particle is outside geometry')
 
-            collision_normal_vec = calc_normal(closest_collision_segment, particle_position_point)
+            collision_normal_vec = calc_normal(closest_collision_segment, particle_p0)
             if relax:
                 particle.set_velocity()
                 particle.velocity += drift_velocity
@@ -183,31 +171,6 @@ class System:
             self.time_steps += 1
             self.save_particle_data(particle)
             stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
-
-
-    def check_relaxation_event(self, closest_collision_segment, lowest_time_to_collision, time_until_relax):
-        """
-        Check if occurred relaxation event during time interval
-
-        :param closest_collision_segment: closest collided segment
-        :param lowest_time_to_collision: lowest time until collision happens (if it happens)
-        :param time_until_relax: time interval until next relaxation event
-        :return closest_collision_segment: closest collided segment
-        :return lowest_time: lowest acceptable time interval to the next iteration
-        :return time_until_relax: remaining time until relaxation event
-        :return relax: boolean indicating if relaxation event has occurred
-        """
-        if lowest_time_to_collision > time_until_relax:
-            closest_collision_segment = None
-            lowest_time = time_until_relax
-            time_until_relax = round(self.relax_time, self.significant_digits_time)
-            relax = True
-        else:
-            lowest_time = lowest_time_to_collision
-            time_until_relax -= lowest_time
-            time_until_relax = round(time_until_relax, self.significant_digits_time)
-            relax = False
-        return closest_collision_segment, lowest_time, time_until_relax, relax
 
 
     def check_current_collision(self, particle, closest_collision_segment, segment_normal_vec):
@@ -255,6 +218,7 @@ class System:
         :return: None
         """
         pos = self.topology.random_segment_pos(element)
+        pos = Point2(pos.x(), particle.position.y())
         particle.position = point_to_vec(pos)
 
 
@@ -302,6 +266,7 @@ class System:
         carrier_concentration = self.material.carrier_concentration
         current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
                   (self.total_macro_particles * self.max_time_simulation)
+        # current = self.particle_counter * elementary_charge / sum(self.simulated_time)
         return current
 
 
@@ -328,7 +293,10 @@ class System:
         """
         if TEST:
             particle_pos = Point2(particle.position.x(), particle.position.y())
-            particle.positions[self.simulations_counter - 1].append(particle_pos)
+            if len(particle.positions) == self.simulations_counter:
+                particle.positions[self.simulations_counter - 1].append(particle_pos)
+            else:
+                particle.positions.append([particle_pos])
 
 
 def draw_behaviour(desired_sys, simulations: list = None):
@@ -382,27 +350,27 @@ def progress_bar(progress, total):
 
 if __name__ == '__main__':
     f_velocity = c / 300
-    MFPL = 500e-9
-    carrier_c = 7.2e15
+    MFPL = 200e-9
     thickness = 300e-9
     gate_voltage = 10
-    geometry = '../tests/diode8.svg'
+    geometry = '../tests/diode12.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
         permittivity=3.9,
         substrate_thickness=thickness,
-        gate_voltage=gate_voltage
+        gate_voltage=gate_voltage,
+        mobility=4
     )
-    particle_m = Particle(density=120, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
+    particle_m = Particle(density=1, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file(geometry, 1e-7)
-    e_field = Vector2(-0.5, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
+    e_field = Vector2(-10e-3, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
         topology=pol,
         material=mat,
         electric_field=e_field,
-        max_collisions=100,
+        max_collisions=100000,
         max_time_simulation=mat.relax_time
     )
     exec_time = time.time()
@@ -423,5 +391,5 @@ if __name__ == '__main__':
     print(f'Current:{simulation_current}')
     print(f'Drude current: {drude_analytical_current}')
     print(f'Execution time: {exec_time}')
-    draw_behaviour(system, [i for i in range(0, 100)])
+    # draw_behaviour(system, [i for i in range(10000, 10100)])
     # draw_behaviour(system)
