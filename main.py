@@ -46,6 +46,45 @@ def plot_figs(asy_voltages, curr_voltages, asy, curr, drude_curr):
     plt.savefig(f'outputs/currents.png', dpi=fig_iv.dpi)
 
 
+def monte_carlo(voltage_list, topology, material, particle_model, geo, max_coll):
+    for vol in voltage_list:
+        voltages.append(-vol)
+        vol = [vol, 0]
+        e_field = Vector2(*vol) / (topology.bbox.xmax() - topology.bbox.xmin())
+        system = System(
+            topology=topology,
+            material=material,
+            particle=particle_model,
+            electric_field=e_field,
+            max_collisions=max_coll,
+            max_time_simulation=material.relax_time
+        )
+        system.simulate(system.simulate_drude)
+        simulation_current = system.cal_current()
+        currents.append(simulation_current)
+        save_current('outputs/currents.csv', simulation_current, geo, vol)
+
+        print(f'Voltage: {-vol[0]}')
+        print(f'Current:{simulation_current}')
+
+        if 'rectangle' in geo:
+            drude_current = drude_analytical_model(
+                e_field=e_field,
+                relax_time=material.relax_time,
+                width=float(topology.bbox.ymax() - topology.bbox.ymin()),
+                carrier_concentration=material.carrier_concentration,
+                effective_mass=material.effective_mass * electron_mass
+            )
+            save_current('outputs/currents.csv', drude_current, geo, vol)
+            drude_currents.append(drude_current)
+            print(f'Drude current: {drude_current}')
+
+        print(f'Time steps: {system.time_steps}')
+        print(f'Collisions: {system.collisions}')
+        print(f'-' * 100)
+        print('\r')
+
+
 if __name__ == '__main__':
     currents = list()
     drude_currents = list()
@@ -59,9 +98,9 @@ if __name__ == '__main__':
     sub_thickness = 300e-9
     material_permittivity = 3.9
 
-    density = 1
+    density = 50
     scale = 1e-7
-    geometry = 'tests/rectangle.svg'
+    geometry = 'tests/diode12.svg'
 
     max_collisions = 100000
     voltage = np.linspace(-1, 1, num=11)
@@ -80,42 +119,7 @@ if __name__ == '__main__':
 
     exec_time = time.time()
 
-    for vol in voltage:
-        voltages.append(-vol)
-        vol = [vol, 0]
-        e_field = Vector2(*vol) / (pol.bbox.xmax() - pol.bbox.xmin())
-        system = System(
-            topology=pol,
-            material=mat,
-            particle=particle_m,
-            electric_field=e_field,
-            max_collisions=max_collisions,
-            max_time_simulation=mat.relax_time
-        )
-        system.simulate(system.simulate_drude)
-        simulation_current = system.cal_current()
-        currents.append(simulation_current)
-        save_current('outputs/currents.csv', simulation_current, geometry, vol)
-
-        print(f'Voltage: {-vol[0]}')
-        print(f'Current:{simulation_current}')
-
-        if 'rectangle' in geometry:
-            drude_current = drude_analytical_model(
-                e_field=e_field,
-                relax_time=np.mean(system.simulated_time),
-                width=float(pol.bbox.ymax() - pol.bbox.ymin()),
-                carrier_concentration=mat.carrier_concentration,
-                effective_mass=mat.effective_mass * electron_mass
-            )
-            save_current('outputs/currents.csv', drude_current, geometry, vol)
-            drude_currents.append(drude_current)
-            print(f'Drude current: {drude_current}')
-
-        print(f'Time steps: {system.time_steps}')
-        print(f'Collisions: {system.collisions}')
-        print(f'-' * 100)
-        print('\r')
+    monte_carlo(voltage, pol, mat, particle_m, geometry, max_collisions)
 
     exec_time = time.time() - exec_time
     vol_asy, asymmetry = calc_asymmetry(currents, voltages)

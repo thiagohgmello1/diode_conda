@@ -55,7 +55,7 @@ class System:
         self.particle_counter = 0
 
         self.max_time_simulation = max_time_simulation
-        self.simulated_time = list()
+        self.simulated_time = 0
 
         self.max_collisions = max_collisions
         self.collisions = 0
@@ -144,7 +144,7 @@ class System:
         particle.velocity += drift_velocity
 
         remaining_time = self.material.mean_free_path / np.sqrt(float(particle.velocity.squared_length()))
-        self.simulated_time.append(remaining_time)
+        self.simulated_time += remaining_time
         stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
 
         while not stop_conditions:
@@ -202,10 +202,10 @@ class System:
         :return: string indicating segment group
         """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
-            self.particle_counter += particle_density
+            self.particle_counter += 1
             return True, 'reverse'
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
-            self.particle_counter -= particle_density
+            self.particle_counter -= 1
             return True, 'direct'
         return False, ''
 
@@ -265,8 +265,7 @@ class System:
         """
         carrier_concentration = self.material.carrier_concentration
         current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
-                  (self.total_macro_particles * self.max_time_simulation)
-        # current = self.particle_counter * elementary_charge / sum(self.simulated_time)
+                  self.simulated_time
         return current
 
 
