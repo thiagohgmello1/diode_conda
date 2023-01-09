@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from skgeom import Vector2
-from scipy.constants import c, electron_mass
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
+from scipy.constants import c, electron_mass
 from simulators.monte_carlo import System, save_current
-from utils.comparable_methods import drude_analytical_model
+from utils.comparable_methods.drude_analytical import drude_analytical_model
 
 
 def calc_asymmetry(current_list: list, volt: list) -> tuple[list, list]:
@@ -93,17 +93,17 @@ if __name__ == '__main__':
     MFPL = 200e-9
     mobility = 4
     carrier_c = None
-    gate_voltage = 10
+    gate_voltage = 20
     f_velocity = c / 300
     sub_thickness = 300e-9
     material_permittivity = 3.9
 
-    density = 50
+    density = 150
     scale = 1e-7
     geometry = 'tests/diode12.svg'
 
     max_collisions = 100000
-    voltage = np.linspace(-1, 1, num=11)
+    voltage = np.linspace(-0.1, 0.1, num=11)
 
     mat = Material(
         mobility=mobility,

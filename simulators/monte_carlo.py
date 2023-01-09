@@ -11,11 +11,11 @@ from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
 from skgeom import Vector2, Point2, Segment2
-from utils.comparable_methods import drude_analytical_model
 from scipy.constants import c, elementary_charge, electron_mass
+from utils.comparable_methods.drude_analytical import drude_analytical_model
 from utils.complementary_operations import vec_to_point, point_to_vec, calc_normal, create_segments
 
-TEST = False
+TEST = True
 SIGNIFICANT_DIGITS = 4
 BREAK_MAX = 1000
 matplotlib.use('TkAgg')
@@ -114,7 +114,7 @@ class System:
         self.set_particle_parameters(self.particles[0])
         while self._calc_stop_conditions():
             self.particles[0].set_velocity()
-            self.total_macro_particles += self.particles[0].density
+            self.total_macro_particles += 1
             self.simulations_counter += 1
             model(self.particles[0])
             progress_bar(self.collisions, self.max_collisions)
@@ -144,13 +144,14 @@ class System:
         particle.velocity += drift_velocity
 
         remaining_time = self.material.mean_free_path / np.sqrt(float(particle.velocity.squared_length()))
+        # remaining_time = self.relax_time
         self.simulated_time += remaining_time
         stop_conditions = np.isclose(remaining_time, 0, atol=0, rtol=self.significant_digits_time)
 
         while not stop_conditions:
             traveled_path = particle.calc_next_position(remaining_time)
             intersection_points = self.topology.intersection_points(traveled_path)
-            lowest_time_to_collision, closest_collision_segment, next_pos, relax = self._calc_closer_intersection(
+            lowest_time_to_collision, closest_collision_segment, next_pos = self._calc_closer_intersection(
                 remaining_time, particle.velocity, intersection_points, traveled_path, particle
             )
             particle_p0 = vec_to_point(particle.position)
@@ -160,9 +161,6 @@ class System:
                 raise Exception('Particle is outside geometry')
 
             collision_normal_vec = calc_normal(closest_collision_segment, particle_p0)
-            if relax:
-                particle.set_velocity()
-                particle.velocity += drift_velocity
 
             self.check_current_collision(particle, closest_collision_segment, collision_normal_vec)
 
@@ -184,7 +182,7 @@ class System:
         """
         if segment_normal_vec:
             self.collisions += 1
-            current_collision, element = self.particle_computation(closest_collision_segment, particle.density)
+            current_collision, element = self.particle_computation(closest_collision_segment)
             if current_collision:
                 self.save_particle_data(particle)
                 self.teleport_particle(particle, element)
@@ -192,12 +190,11 @@ class System:
                 particle.mirror_particle(segment_normal_vec)
 
 
-    def particle_computation(self, collided_element: Segment2, particle_density: float) -> tuple[bool, str]:
+    def particle_computation(self, collided_element: Segment2) -> tuple[bool, str]:
         """
         Compute collisions in current elements
 
         :param collided_element: collided geometry segment
-        :param particle_density: particle density
         :return: boolean indicating if there was rectification
         :return: string indicating segment group
         """
@@ -229,7 +226,7 @@ class System:
             intersection_points: list[Point2],
             traveled_path: Segment2,
             particle: Particle
-    ) -> (float, Segment2, Vector2, bool):
+    ) -> (float, Segment2, Vector2):
         """
         Define closer intersection between particle path and geometries boundaries
 
@@ -242,7 +239,6 @@ class System:
         lowest_time_to_collision = remaining_time
         next_pos = None
         lowest_collision_segment = None
-        relax = False
         for intersection_point, collision_element in intersection_points:
             time_to_collision = self._time_to_collision(particle_velocity, intersection_point, traveled_path)
             if time_to_collision < lowest_time_to_collision:
@@ -252,16 +248,15 @@ class System:
 
         if not next_pos:
             next_pos = particle.position + particle.velocity * lowest_time_to_collision
-            relax = True
 
-        return lowest_time_to_collision, lowest_collision_segment, next_pos, relax
+        return lowest_time_to_collision, lowest_collision_segment, next_pos
 
 
     def cal_current(self):
         """
         Calculate total current
 
-        :return: calculated currents
+        :return: calculated current
         """
         carrier_concentration = self.material.carrier_concentration
         current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
@@ -352,18 +347,18 @@ if __name__ == '__main__':
     MFPL = 200e-9
     thickness = 300e-9
     gate_voltage = 10
-    geometry = '../tests/diode12.svg'
+    geometry = '../tests/rectangle.svg'
     mat = Material(
         mean_free_path=MFPL,
         scalar_fermi_velocity=f_velocity,
         permittivity=3.9,
         substrate_thickness=thickness,
         gate_voltage=gate_voltage,
-        mobility=4
+        mobility=None
     )
     particle_m = Particle(density=1, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
     pol = Topology.from_file(geometry, 1e-7)
-    e_field = Vector2(-10e-3, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
+    e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
     system = System(
         particle=particle_m,
         topology=pol,
