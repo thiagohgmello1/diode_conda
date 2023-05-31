@@ -1,194 +1,129 @@
 from scipy.integrate import quad, dblquad
 from scipy.constants import c, elementary_charge
-from numpy import cos, sin, pi, tan, arctan, deg2rad, sqrt
+from numpy import cos, sin, pi, tan, arctan, deg2rad, sqrt, sign, linspace
 
 
 class Analytical:
-    def __init__(
-            self,
-            fermi_vel: float,
-            neck_height: float,
-            diode_length: float,
-            angle: float,
-            voltage: float,
-            carrier_concentration: float,
-            mobility: float,
-            max_reflections: int = 1000
-    ):
-        self.angle = angle
-        self.fermi_vel = fermi_vel
-        self.reflection_counter = 0
-        self.half_neck = neck_height / 2
-        self.length = diode_length
-        self.e_field = voltage / self.length
-        self.max_reflections = max_reflections
-        self.drift_vel = mobility * self.e_field
-        self.vel_ratio = self.drift_vel / self.fermi_vel
-        self.carrier_concentration = carrier_concentration
-        self.half_shoulder = self.half_neck + self.length / tan(self.angle)
+    def __init__(self, a, h, alpha, v0, voltage, mobility, m_max=1000):
+        self.a = a
+        self.h = h
+        self.alpha = alpha
+        self.d = self.a + self.h / tan(self.alpha)
+        self.v0 = v0
+        self.voltage = voltage
+        self.mobility = mobility
+        self.m_max = m_max
+        self.x_am = list()
+        self.y_am = list()
+        self.calc_m_max()
 
 
-    def vt_theta_y(self):
-        return lambda theta, y: self.fermi_vel * sqrt(1 + self.vel_ratio ** 2 + 2 * self.vel_ratio * cos(theta))
+    def calc_m_max(self):
+        m = 2
+        x_list = list()
+        y_list = list()
+        x_list.append(None)
+        y_list.append(None)
+        x_am1 = -self.h
+        y_am1 = self.d
+        x_list.append(x_am1)
+        y_list.append(y_am1)
+
+        x_am = x_am1 - 2 * self.d * sin((m - 1) * (2 * self.alpha - pi))
+        y_am = y_am1 + 2 * self.d * cos((m - 1) * (2 * self.alpha - pi))
+        x_list.append(x_am)
+        y_list.append(y_am)
+
+        while (x_am1 < 0 and x_am < 0) and m < self.m_max:
+            x_am1 = x_am
+            y_am1 = y_am
+            m += 1
+            x_am = x_am1 - 2 * self.d * sin((m - 1) * (2 * self.alpha - pi))
+            y_am = y_am1 + 2 * self.d * cos((m - 1) * (2 * self.alpha - pi))
+            x_list.append(x_am)
+            y_list.append(y_am)
+
+        self.m_max = m
+        self.x_am = x_list
+        self.y_am = y_list
 
 
-    def sin_theta(self):
-        return lambda theta: sin(theta) / sqrt(1 + self.vel_ratio ** 2 + 2 * self.vel_ratio * cos(theta))
-
-
-    def mean_vel(self):
-        f = lambda theta: self.fermi_vel * sqrt(1 + self.vel_ratio ** 2 + 2 * self.vel_ratio * cos(theta)) * cos(theta)
-        return 1 / (2 * pi) * quad(f, -pi / 2, pi / 2)[0]
-
-
-    def calc_next_coordinates(self, x_previous, y_previous):
-        if self.reflection_counter <= 1:
-            return -self.length, self.half_shoulder
+    def y_min(self, m, x_am):
+        if m < self.m_max or (m == self.m_max and self.m_max % 2 == 0):
+            return -self.d
         else:
-            x_next = x_previous - 2 * self.half_shoulder * sin((self.reflection_counter - 1) * (2 * self.angle - pi))
-            y_next = y_previous + 2 * self.half_shoulder * cos((self.reflection_counter - 1) * (2 * self.angle - pi))
-            return x_next, y_next
+            # return self.d + x_am / abs(sin(2 * m * self.alpha))
+            return -self.d
 
 
-    def y_min(self, x_m, max_reflection):
-        if max_reflection and (self.reflection_counter % 2 == 1):
-            return self.half_shoulder + x_m / abs(sin(2 * self.reflection_counter * self.angle))
+    def y_max(self, m, x_am):
+        if m < self.m_max or (m == self.m_max and self.m_max % 2 == 1):
+            return self.d
         else:
-            return -1 * self.half_shoulder
+            # return -self.d - x_am / abs(sin(2 * m * self.alpha))
+            return self.d
 
 
-    def y_max(self, x_m, max_reflection):
-        if max_reflection and (self.reflection_counter % 2 == 0):
-            return -1 * self.half_shoulder - x_m / abs(sin(2 * self.reflection_counter * self.angle))
+    def theta_min(self, m, x_am, y_am):
+        if m == 0:
+            return lambda y: arctan((-y - self.a) / self.h)
         else:
-            return self.half_shoulder
+            return lambda y: (-1) ** m * (m * (pi - 2 * self.alpha) +
+                                          arctan((-abs(sin(2 * m * self.alpha)) / tan(2 * m * self.alpha) *
+                                                  (self.d + (-1) ** m * y) + y_am + (-1) ** m * self.a) /
+                                                 (x_am + abs(sin(2 * m * self.alpha)) * (self.d + (-1) ** m * y))
+                                                 )
+                                          )
 
 
-    @staticmethod
-    def func_1(y, reflection_counter, angle, half_neck, half_shoulder, x_m, y_m):
-        atan_num = (-1 * abs(sin(2 * reflection_counter * angle)) * (half_shoulder + ((-1) ** reflection_counter) * y) /
-                    tan(2 * reflection_counter * angle) + y_m + ((-1) ** reflection_counter) * half_neck)
-        atan_den = (x_m + abs(sin(2 * reflection_counter * angle)) * (half_shoulder + ((-1) ** reflection_counter) * y))
-        if atan_den == 0:
-            return ((-1) ** reflection_counter) * (reflection_counter * (pi - 2 * angle) + pi / 2)
+    def theta_max(self, m, x_am, y_am):
+        if m == 0:
+            return lambda y: arctan((-y + self.a) / self.h)
         else:
-            return ((-1) ** reflection_counter) * (reflection_counter * (pi - 2 * angle) + arctan(atan_num / atan_den))
-
-    def theta_min(self, x_m, y_m):
-        if self.reflection_counter == 0:
-            return lambda y: arctan((-y - self.half_neck) / self.length)
-        else:
-            return lambda y: ((-1) ** self.reflection_counter) * (
-                    self.reflection_counter * (pi - 2 * self.angle)
-                    + arctan((-1 * abs(sin(2 * self.reflection_counter * self.angle)) *
-                              (self.half_shoulder + ((-1) ** self.reflection_counter) * y) /
-                              tan(2 * self.reflection_counter * self.angle) + y_m + ((-1) ** self.reflection_counter) *
-                              self.half_neck) / (x_m + abs(sin(2 * self.reflection_counter * self.angle)) *
-                                                 (self.half_shoulder + ((-1) ** self.reflection_counter) * y))
-                             )
-            )
+            return lambda y: (-1) ** m * (m * (pi - 2 * self.alpha) +
+                                          arctan((-abs(sin(2 * m * self.alpha)) / tan(2 * m * self.alpha) *
+                                                  (self.d + (-1) ** m * y) + y_am - (-1) ** m * self.a) /
+                                                 (x_am + abs(sin(2 * m * self.alpha)) * (self.d + (-1) ** m * y))
+                                                 )
+                                          )
 
 
-    def theta_max(self, x_m, y_m):
-        if self.reflection_counter == 0:
-            return lambda y: arctan((self.half_neck - y) / self.length)
-        else:
-            return lambda y: ((-1) ** self.reflection_counter) * (
-                    self.reflection_counter * (pi - 2 * self.angle)
-                    + arctan((-1 * abs(sin(2 * self.reflection_counter * self.angle)) *
-                              (self.half_shoulder + ((-1) ** self.reflection_counter) * y) /
-                              tan(2 * self.reflection_counter * self.angle) + y_m - ((-1) ** self.reflection_counter) *
-                              self.half_neck) / (x_m + abs(sin(2 * self.reflection_counter * self.angle)) *
-                                                 (self.half_shoulder + ((-1) ** self.reflection_counter) * y))
-                             )
-            )
+    def calc_f1(self):
+        f1_list = list()
+        for m in range(self.m_max + 1):
+            x_am = self.x_am[m]
+            y_am = self.y_am[m]
+            y_min = self.y_min(m, x_am)
+            y_max = self.y_max(m, x_am)
+            theta_min = self.theta_min(m, x_am, y_am)
+            theta_max = self.theta_max(m, x_am, y_am)
+            f1 = dblquad(lambda theta, y: 1, y_min, y_max, theta_min, theta_max)[0]
+            f1_list.append(f1)
+        f1 = sum(f1_list) / (pi * self.d)
+        print(f1)
 
 
-    def m_probability(self, theta_min, theta_max, y_min, y_max):
-        num = 2 * dblquad(self.vt_theta_y(), y_min, y_max, theta_min, theta_max)[0]
-        den = dblquad(self.vt_theta_y(), -self.half_shoulder, self.half_shoulder, -pi / 2, pi / 2)[0]
-        if num / den < 0:
-            print('Menor que zero')
-        return num / den
-
-
-    def m_probability_zb(self, theta_min, theta_max, y_min, y_max):
-        num = 1 / (pi * self.half_shoulder) * dblquad(lambda theta, y: 1, y_min, y_max, theta_min, theta_max)[0]
-        if num:
-            print('Menor que zero')
-        return num
-
-
-    def calc_direct_current(self, normalize=False):
-        # total_direct_current = 2 * elementary_charge * self.carrier_concentration * self.mean_vel() * self.half_shoulder
-        total_direct_current = 2 * elementary_charge * self.carrier_concentration * self.fermi_vel * self.half_shoulder / pi
-        x_m1, y_m1 = self.calc_next_coordinates(None, None)
-        max_reflection = False
-        stop_condition = False
-        transport_probability = 0
-
-        while not stop_condition:
-            stop_condition = max_reflection
-            x_m = x_m1
-            y_m = y_m1
-            y_min = self.y_min(x_m, max_reflection)
-            y_max = self.y_max(x_m, max_reflection)
-            t_min = self.theta_min(x_m, y_m)
-            t_max = self.theta_max(x_m, y_m)
-            # transport_probability += self.m_probability(t_min, t_max, y_min, y_max)
-            transport_probability += self.m_probability_zb(t_min, t_max, y_min, y_max)
-            self.reflection_counter += 1
-            x_m1, y_m1 = self.calc_next_coordinates(x_m, y_m)
-            if self.reflection_counter > self.max_reflections:
-                break
-            if x_m < 0 and x_m1 > 0:
-                max_reflection = True
-
-        self.reflection_counter = 0
-        print(f'Transport probability: {transport_probability}')
-        direct_current = total_direct_current * transport_probability
-        normalize_factor = (2 * elementary_charge * self.carrier_concentration * self.fermi_vel * self.half_neck / pi)
-        if normalize:
-            return direct_current / normalize_factor
-        else:
-            return direct_current
-
-
-    def calc_reverse_current(self, normalize=False):
-        reverse_current = elementary_charge * self.carrier_concentration * self.half_neck * 2 * self.mean_vel()
-        normalize_factor = (2 * elementary_charge * self.carrier_concentration * self.fermi_vel * self.half_neck / pi)
-        if normalize:
-            return reverse_current / normalize_factor
-        else:
-            return reverse_current
-
-
-    def calc_total_current(self, normalize=False):
-        total_current = self.calc_direct_current() - self.calc_reverse_current()
-        normalize_factor = (2 * elementary_charge * self.carrier_concentration * self.fermi_vel * self.half_neck / pi)
-        if normalize:
-            return total_current / normalize_factor
-        else:
-            return total_current
+    def calc_f1_test(self, num_elem=11):
+        f1_list = list()
+        for m in range(self.m_max + 1):
+            x_am = self.x_am[m]
+            y_am = self.y_am[m]
+            y_min = self.y_min(m, x_am)
+            y_max = self.y_max(m, x_am)
+            y_values = linspace(y_min, y_max, num_elem)
+            delta_y = (y_max - y_min) / num_elem
+            f1_inter = list()
+            theta_min = self.theta_min(m, x_am, y_am)
+            theta_max = self.theta_max(m, x_am, y_am)
+            for y in y_values:
+                f1_inter.append((theta_max(y) - theta_min(y)) * delta_y)
+            # f1_list_test = quad(lambda y: theta_max(y) - theta_min(y), y_min, y_max)[0]
+            f1_list.append(sum(f1_inter))
+        f1 = sum(f1_list) / (2 * pi * self.d)
+        print(f1)
 
 
 if __name__ == '__main__':
-    mob = 4
-    volt = 0
-    v0 = 1
-    carrier_c = 1
-    neck_h = 10
-    length = 5
-    alpha = deg2rad(45)
-    shoulder = neck_h + length / tan(alpha)
-    e_field = volt / length
-    drift_vel = mob * e_field
-    g = drift_vel / v0
-    analitic = Analytical(v0, neck_h, length, alpha, volt, carrier_c, mob, 1000)
-    direct_curr = analitic.calc_direct_current(True)
-    reverse_curr = analitic.calc_reverse_current(True)
-    total_curr = analitic.calc_total_current(True)
-    print(f'Direct current: {direct_curr}')
-    print(f'Reverse current: {reverse_curr}')
-    print(f'Total current: {total_curr}')
-
+    analytical = Analytical(a=1, h=1, alpha=deg2rad(40), v0=1, voltage=0, mobility=1, m_max=1000)
+    analytical.calc_f1()
+    # analytical.calc_f1_test()

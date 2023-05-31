@@ -70,7 +70,7 @@ class System:
     @staticmethod
     def create_particles(particle_model, number_of_particles) -> list:
         """
-        Create particles according specified number or according CPU cores
+        Create particles according specified number or according to CPU cores
 
         :param particle_model: model of desired particle
         :param number_of_particles: number of particles to be created (if specified)
@@ -233,7 +233,7 @@ class System:
         :param intersection_points: list of points where collision can occur
         :param particle_velocity: possible particle velocity
         :param traveled_path: corresponding particle path
-        :return lowest_time_to_collision: lowest time to collision
+        :return lowest_time_to_collision: the lowest time to collision
         :return lowest_collision_segment: collided segment
         """
         lowest_time_to_collision = remaining_time
@@ -259,8 +259,9 @@ class System:
         :return: calculated current
         """
         carrier_concentration = self.material.carrier_concentration
-        current = (carrier_concentration * self.topology.area * elementary_charge * self.particle_counter) /\
-                  self.simulated_time
+        current = (
+                          carrier_concentration * self.topology.area * elementary_charge * self.particle_counter
+                  ) / self.simulated_time
         return current
 
 
@@ -297,7 +298,7 @@ def draw_behaviour(desired_sys, simulations: list = None):
     """
     Draw some achieved particle positions
 
-    :param simulations: simulations positions to be drawn (i.e. [1, 2, 3] will plot the 1°, 2°, and 3° executions)
+    :param simulations: simulation positions to be drawn (i.e. [1, 2, 3] will plot the 1°, 2°, and 3° executions)
     :param desired_sys: system to be drawn
     :return: None
     """

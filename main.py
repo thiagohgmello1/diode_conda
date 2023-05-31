@@ -90,28 +90,28 @@ if __name__ == '__main__':
     drude_currents = list()
     voltages = list()
 
-    MFPL = 200e-9
+    mfpl = 200e-9
     mobility = 4
     carrier_c = None
     gate_voltage = 20
     f_velocity = c / 300
-    sub_thickness = 300e-9
+    substrate_thickness = 300e-9
     material_permittivity = 3.9
 
     density = 150
     scale = 1e-7
-    geometry = 'tests/diode12.svg'
+    geometry = 'tests/rectangle.svg'
 
     max_collisions = 100000
     voltage = np.linspace(-0.1, 0.1, num=11)
 
     mat = Material(
         mobility=mobility,
-        mean_free_path=MFPL,
+        mean_free_path=mfpl,
         gate_voltage=gate_voltage,
         carrier_concentration=carrier_c,
         scalar_fermi_velocity=f_velocity,
-        substrate_thickness=sub_thickness,
+        substrate_thickness=substrate_thickness,
         permittivity=material_permittivity
     )
     particle_m = Particle(density=density, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)

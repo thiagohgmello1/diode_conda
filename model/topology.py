@@ -16,7 +16,7 @@ class Topology:
         Create simulated topology
 
         :param topologies: list of polygon that form desired topology to be simulated
-        :param scale: length scale in meters (ex.: 10e-9 for nanometer)
+        :param scale: length scale (m) (i.e. 1e-9 for nanometer)
         """
         topologies = self._set_orientation(topologies)
         self.bbox = None
@@ -37,7 +37,7 @@ class Topology:
         Create topology from file
 
         :param file_name: file name
-        :param scale: scale dimension (ex.: 1e-6; 1e-9)
+        :param scale: scale dimension (i.e. 1e-6, 1e-9)
         :return: class instantiation
         """
         topologies = XMLReader(file_name, scale)

@@ -14,8 +14,8 @@ class Particle:
 
         :param density: density of particles [electrons/particle]
         :param effective_mass: effective electron mass according material specifications [kg]
-        :param fermi_velocity: calculated scalar Fermi velocity [m/s]
-        :param position: initial position (if desired to define non random initial position)
+        :param fermi_velocity: scalar Fermi velocity [m/s]
+        :param position: initial position (if desired to define nonrandom initial position)
         """
         self.density = density
         self.charge = (-1) * elementary_charge * self.density

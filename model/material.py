@@ -8,7 +8,7 @@ class Material:
             mean_free_path: float,
             scalar_fermi_velocity: float,
             mobility: float = None,
-            substrate_thickness: float = 1,
+            substrate_thickness: float = 300e-9,
             relax_time: float = None,
             gate_voltage: float = 10,
             permittivity: float = 1,
@@ -16,17 +16,17 @@ class Material:
             carrier_concentration=None
     ):
         """
-        Class responsible to represent used material. All values must be in international system (m, s, etc.)
+        Represent the chosen material. All values must be in international system (m, s, etc.)
 
         :param mean_free_path: material mean free path (Lambda_{MFP})
-        :param scalar_fermi_velocity: defined scalar Fermi velocity
+        :param scalar_fermi_velocity: defined scalar Fermi velocity (m/s)
         :param mobility: electron mobility [m^2/(Vs)]
-        :param substrate_thickness: substrate thickness (responsible from carrier concentration)
-        :param relax_time: relaxation time (if desired to define)
-        :param gate_voltage: applied gate voltage
-        :param permittivity: electric permittivity
-        :param permeability: magnetic permeability
-        :param carrier_concentration: material carrier concentration (if desired to define)
+        :param substrate_thickness: substrate thickness (m) (responsible from carrier concentration)
+        :param relax_time: relaxation time (s) (if desired to define)
+        :param gate_voltage: applied gate voltage (V)
+        :param permittivity: electric permittivity (F/m)
+        :param permeability: magnetic permeability (H/m)
+        :param carrier_concentration: material carrier concentration (1/m^2) (if desired to define)
         """
         self.relax_time = relax_time
         self.permittivity = permittivity
