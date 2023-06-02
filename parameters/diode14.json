@@ -13,13 +13,13 @@
     },
     "geometry": {
         "input_style": "file",
-        "scale": 1e-7,
-        "file_name": "tests/rectangle.svg"
+        "scale": 1e-8,
+        "file_name": "tests/diode14.svg"
     },
     "convergence": {
         "max_coll": 100000,
-        "n_particles": 1000,
-        "geo": "tests/rectangle.svg"
+        "n_particles": 100,
+        "geo": "tests/diode14.svg"
     },
     "voltage": {
         "v_min": -0.1,

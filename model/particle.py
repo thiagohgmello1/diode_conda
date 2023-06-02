@@ -1,3 +1,4 @@
+import copy
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
 from skgeom import Bbox2, Vector2, Point2, Segment2
@@ -25,8 +26,27 @@ class Particle:
         self.scalar_fermi_velocity = fermi_velocity
         self.fermi_velocity = None
         self.velocity = None
-        self.position = position
+        self._position = position
         self.positions = list()
+
+
+    @property
+    def position(self):
+        return self._position
+
+
+    @position.setter
+    def position(self, pos):
+        self._position = pos
+
+
+    def __deepcopy__(self, memodict={}):
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memodict[id(self)] = result
+        for k, v in self.__dict__.items():
+            setattr(result, k, copy.deepcopy(v, memodict))
+        return result
 
 
     def set_init_position(self, bbox: Bbox2):
@@ -64,10 +84,10 @@ class Particle:
 
     def calc_next_position(self, delta_t: float) -> Segment2:
         """
-        Calculate next particle position according cinematic equations for uniformly varied motion
+        Calculate next particle position according kinematic equations for uniformly varied motion
 
         :param delta_t: time interval
-        :return: next possible position and line segment that connect initial and final particle positions
+        :return: line segment that connect initial and final particle positions
         """
         next_pos = self.position + self.velocity * delta_t
         p_0 = vec_to_point(self.position)
@@ -86,13 +106,12 @@ class Particle:
         self.velocity = mirror(self.velocity, normal_vec)
 
 
-    @staticmethod
-    def calc_drift_velocity(mobility: float, electric_field: Vector2) -> Vector2:
+    def calc_drift_velocity(self, relax_time, electric_field: Vector2) -> Vector2:
         """
         Calculate particle drift velocity
 
-        :param mobility: material mobility
+        :param relax_time: material relaxation time
         :param electric_field: applied electric field
         :return: drift velocity
         """
-        return mobility * electric_field
+        return self.charge * relax_time * electric_field / self.mass

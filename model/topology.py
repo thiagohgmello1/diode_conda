@@ -156,22 +156,22 @@ class Topology:
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 
-    def get_closer_segment(self, selected_point: Point2) -> Segment2:
+    def get_closer_segment(self, selected_point: Point2) -> tuple[Segment2, float]:
         """
         Get closer segment from desired point
 
         :param selected_point: desired point
         :return: closest segment
         """
-        distance = np.inf
+        min_distance = np.inf
         selected_segment = None
         for segments in self.segments.values():
             for segment in segments:
                 dist = calc_distance_between(segment, selected_point)
-                if dist < distance:
-                    distance = dist
+                if dist < min_distance:
+                    min_distance = dist
                     selected_segment = segment
-        return selected_segment
+        return selected_segment, min_distance
 
     def _get_current_computing_elements(self):
         plots = {'direct': list(), 'reverse': list()}
@@ -196,7 +196,7 @@ class Topology:
         def _on_click_event(event):
             if event.button is MouseButton.LEFT and event.xdata and event.ydata:
                 point = Point2(event.xdata, event.ydata)
-                segment = self.get_closer_segment(point)
+                segment, _ = self.get_closer_segment(point)
                 print(segment)
                 if segment not in self.current_computing_elements['direct']:
                     plot_segment(segment, 'red', 'direct')
@@ -212,7 +212,7 @@ class Topology:
 
             elif event.button is MouseButton.RIGHT and event.xdata and event.ydata:
                 point = Point2(event.xdata, event.ydata)
-                segment = self.get_closer_segment(point)
+                segment, _ = self.get_closer_segment(point)
                 print(segment)
                 if segment not in self.current_computing_elements['reverse']:
                     plot_segment(segment, 'blue', 'reverse')
