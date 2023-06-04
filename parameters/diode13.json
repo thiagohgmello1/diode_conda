@@ -2,10 +2,11 @@
     "material": {
         "mean_free_path": 200e-9,
         "mobility": 4,
-        "carrier_concentration": 7.2e15,
-        "gate_voltage": 0,
+        "carrier_concentration": {
+            "method": "temp",
+            "temp": 300
+        },
         "scalar_fermi_velocity": 1e6,
-        "substrate_thickness": 300e-9,
         "permittivity": 3.9
     },
     "particle": {

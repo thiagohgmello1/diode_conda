@@ -3,11 +3,10 @@
         "mean_free_path": 200e-9,
         "mobility": 4,
         "carrier_concentration": {
-            "method": "temp",
-            "temp": 300
+            "method": "value",
+            "value": 7.2e15
         },
-        "scalar_fermi_velocity": 1e6,
-        "permittivity": 3.9
+        "scalar_fermi_velocity": 1e6
     },
     "particle": {
         "density": 100
@@ -15,12 +14,12 @@
     "geometry": {
         "input_style": "file",
         "scale": 1e-8,
-        "file_name": "tests/diode14.svg"
+        "file_name": "tests/diode15.svg"
     },
     "convergence": {
         "max_coll": 100000,
         "n_particles": 100,
-        "geo": "tests/diode14.svg"
+        "geo": "tests/diode15.svg"
     },
     "voltage": {
         "v_min": -0.1,

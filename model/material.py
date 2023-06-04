@@ -1,57 +1,54 @@
 import numpy as np
-from scipy.constants import pi, h, epsilon_0, elementary_charge, electron_mass
+from scipy.constants import pi, h, hbar, k, epsilon_0, elementary_charge, electron_mass
 
 
 class Material:
     def __init__(
             self,
-            mean_free_path: float,
+            carrier_concentration: dict,
             scalar_fermi_velocity: float,
             mobility: float = None,
-            substrate_thickness: float = 300e-9,
+            mean_free_path: float = None,
             relax_time: float = None,
-            gate_voltage: float = 10,
             permittivity: float = 1,
-            permeability: float = 1,
-            carrier_concentration=None
+            permeability: float = 1
     ):
         """
         Represent the chosen material. All values must be in international system (m, s, etc.)
 
-        :param mean_free_path: material mean free path (Lambda_{MFP})
+        :param carrier_concentration: dict for select carrier concentration calculu method
         :param scalar_fermi_velocity: defined scalar Fermi velocity (m/s)
         :param mobility: electron mobility [m^2/(Vs)]
-        :param substrate_thickness: substrate thickness (m) (responsible from carrier concentration)
+        :param mean_free_path: material mean free path (Lambda_{MFP})
         :param relax_time: relaxation time (s) (if desired to define)
-        :param gate_voltage: applied gate voltage (V)
         :param permittivity: electric permittivity (F/m)
         :param permeability: magnetic permeability (H/m)
-        :param carrier_concentration: material carrier concentration (1/m^2) (if desired to define)
         """
         self.relax_time = relax_time
+        self.scalar_fermi_velocity = scalar_fermi_velocity
+        self._calc_mean_free_path(mean_free_path)
+        self._calc_relax_time()
         self.permittivity = permittivity
         self.permeability = permeability
-        self.mean_free_path = mean_free_path
-        self.scalar_fermi_velocity = scalar_fermi_velocity
-        self.carrier_concentration = self._calc_carrier_concentration(
-            gate_voltage, substrate_thickness, carrier_concentration
-        )
+        self.carrier_concentration = self._calc_carrier_concentration(carrier_concentration)
         self.effective_mass = self._calc_effective_mass()
-        self._calc_relax_time()
         self.mobility = self._calc_mobility(mobility)
 
 
-    def _calc_carrier_concentration(self, gate_voltage, substrate_thickness, carrier_concentration) -> float:
+    def _calc_carrier_concentration(self, carrier_dict) -> float:
         """
         Define carrier concentration
-        :param gate_voltage: voltage applied to the gate
-        :param substrate_thickness: substrate thickness
-        :param carrier_concentration: carrier concentration (if specified)
+        :param carrier_dict: dictionary with carrier concentration data
         :return: carrier concentration
         """
-        if not carrier_concentration:
-            carrier_concentration = epsilon_0 * self.permittivity * gate_voltage / \
-                                    (substrate_thickness * elementary_charge)
+        if carrier_dict['method'] == 'gate_voltage':
+            carrier_concentration = epsilon_0 * self.permittivity * carrier_dict['gate_voltage'] / \
+                                    (carrier_dict['substrate_thickness'] * elementary_charge)
+        elif carrier_dict['method'] == 'temp':
+            carrier_concentration = pi / 6 * (k * carrier_dict['temp'] / (hbar * self.scalar_fermi_velocity)) ** 2
+        else:
+            carrier_concentration = carrier_dict['value']
+
         return carrier_concentration
 
 
@@ -62,6 +59,13 @@ class Material:
         :return: effective particle mass
         """
         return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity * electron_mass)
+
+
+    def _calc_mean_free_path(self, mean_free_path):
+        if not mean_free_path:
+            self.mean_free_path = self.relax_time * self.scalar_fermi_velocity
+        else:
+            self.mean_free_path = mean_free_path
 
 
     def _calc_relax_time(self):

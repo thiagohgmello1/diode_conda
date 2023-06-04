@@ -20,6 +20,7 @@
 venv/
 outputs/
 .idea/
+parameters/
 
 # OS generated files #
 .DS_Store

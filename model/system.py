@@ -1,21 +1,20 @@
-import time
 import matplotlib
 import numpy as np
 import multiprocessing
 import matplotlib.pyplot as plt
 
-from skgeom.draw import draw
-from datetime import datetime
 from math import log10, floor
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
 from skgeom import Vector2, Point2, Segment2
-from scipy.constants import c, elementary_charge, electron_mass
-from simulators.drude_analytical import drude_analytical_model
-from utils.complementary_operations import vec_to_point, point_to_vec, calc_normal, create_segments
+from scipy.constants import elementary_charge
+from utils.post_processing import progress_bar, plot_stable_current
+from utils.complementary_operations import vec_to_point, point_to_vec, calc_normal
+
 
 TEST = False
+followed_particle_id = 1
 TIME_PRECISION = 0.99
 SIGNIFICANT_DIGITS = 4
 BREAK_MAX = 1000
@@ -30,7 +29,6 @@ class System:
             material: Material,
             electric_field: Vector2,
             number_of_particles: int = None,
-            max_time_simulation: float = np.inf,
             max_collisions: float = np.inf,
             max_time_steps: float = np.inf
     ):
@@ -42,10 +40,11 @@ class System:
         :param material: material
         :param electric_field: defined or calculated electric field created by applied topology voltage [V/m]
         :param number_of_particles: number of particles (defined by the number of cores if not defined)
-        :param max_time_simulation: maximum simulation time [s]
         :param max_collisions: defined maximum accepted collisions. Stop criteria
         :param max_time_steps: defined maximum time steps. Stop criteria [s]
         """
+        self.currents = list()
+
         self.particles = self.create_particles(particle, number_of_particles)
         self.topology = topology
         self.material = material
@@ -55,7 +54,6 @@ class System:
         self.total_macro_particles = len(self.particles) * particle.density
         self.particle_counter = 0
 
-        self.max_time_simulation = max_time_simulation
         self.simulated_time = 0
 
         self.max_collisions = max_collisions
@@ -64,10 +62,7 @@ class System:
         self.max_time_steps = max_time_steps
         self.time_steps_count = 0
 
-        self.simulations_count = 0
         self.significant_digits_time = -(int(floor(log10(self.material.relax_time)))) + SIGNIFICANT_DIGITS
-
-        self.currents = list()
 
 
     @staticmethod
@@ -101,7 +96,7 @@ class System:
                 particle.set_init_position(self.topology.bbox)
                 init_pos = vec_to_point(particle.position)
                 _, lowest_dist = self.topology.get_closer_segment(init_pos)
-            if TEST:
+            if TEST and particle.id == followed_particle_id:
                 particle.positions.append([init_pos])
 
 
@@ -119,15 +114,12 @@ class System:
             self.time_steps_count += 1
             for particle in self.particles:
                 particle.set_velocity()
-                self.simulations_count += 1
                 model(particle)
                 if self._stop_conditions():
                     break
             self.currents.append(self.cal_current())
             progress_bar(self.collisions_count, self.max_collisions)
-        fig_iv = plt.figure(figsize=(12, 6))
-        plt.plot(self.currents)
-        plt.savefig(f"outputs/current_stable/currents{'%s' % float('%.1g' % voltage[0])}.png", dpi=fig_iv.dpi)
+        # plot_stable_current(self.currents, voltage)
         print('\n')
 
 
@@ -150,7 +142,7 @@ class System:
         :param particle: macroparticle to be simulated
         :return: None
         """
-        drift_velocity = particle.calc_drift_velocity(self.material.relax_time, self.e_field)
+        drift_velocity = particle.calc_drift_velocity(self.relax_time, self.e_field, self.material.mobility, 'relax')
         particle.velocity += drift_velocity
 
         remaining_time = self.relax_time
@@ -190,7 +182,6 @@ class System:
             self.collisions_count += 1
             current_collision, element = self.particle_computation(closest_collision_segment)
             if current_collision:
-                self.save_particle_data(particle)
                 self.teleport_particle(particle, element)
             else:
                 particle.mirror_particle(segment_normal_vec)
@@ -285,110 +276,14 @@ class System:
         return np.sqrt(float(pos.squared_length() / particle_velocity.squared_length()))
 
 
-    def save_particle_data(self, particle):
+    @staticmethod
+    def save_particle_data(particle):
         """
-        Save particle positions (if TEST is equal True)
+        Save specific particle positions (if TEST is equal True)
 
         :param particle: desired particle to save data
         :return: None
         """
-        if TEST:
+        if TEST and particle.id == followed_particle_id:
             particle_pos = Point2(particle.position.x(), particle.position.y())
-            if len(particle.positions) == self.simulations_count:
-                particle.positions[self.simulations_count - 1].append(particle_pos)
-            else:
-                particle.positions.append([particle_pos])
-
-
-def draw_behaviour(desired_sys, simulations: list = None):
-    """
-    Draw some achieved particle positions
-
-    :param simulations: simulation positions to be drawn (i.e. [1, 2, 3] will plot the 1°, 2°, and 3° executions)
-    :param desired_sys: system to be drawn
-    :return: None
-    """
-    if not simulations:
-        simulations = range(0, len(desired_sys.particles[0].positions))
-    if TEST:
-        draw(desired_sys.topology.topologies)
-        segments_to_print = list()
-        for simulation in simulations:
-            segments_to_print.append(create_segments(desired_sys.particles[0].positions[simulation]))
-        draw(segments_to_print)
-        plt.savefig('../outputs/diode.png')
-
-
-def save_current(current_file: str, meas_current: float, simulated_geometry: str, electric_field: list):
-    """
-    Save calculated current
-
-    :param electric_field: applied electric fields as list
-    :param current_file: output file
-    :param meas_current: calculated current
-    :param simulated_geometry: .svg simulated file
-    :return: None
-    """
-    now = datetime.now()
-    date_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    with open(current_file, 'a') as f:
-        string_to_be_saved = f'{date_string};{simulated_geometry};{meas_current};{electric_field}\n'
-        f.write(string_to_be_saved)
-
-
-def progress_bar(progress, total):
-    """
-    Print progress bar
-
-    :param progress: evolved situation
-    :param total: expect max situation
-    :return: None
-    """
-    percent = 100 * (progress / total)
-    bar = '█' * int(percent) + '-' * (100 - int(percent))
-    print(f'\r|{bar}| {percent:.2f}%', end='\r')
-
-
-if __name__ == '__main__':
-    f_velocity = c / 300
-    MFPL = 200e-9
-    thickness = 300e-9
-    gate_voltage = 10
-    geometry = '../tests/rectangle.svg'
-    mat = Material(
-        mean_free_path=MFPL,
-        scalar_fermi_velocity=f_velocity,
-        permittivity=3.9,
-        substrate_thickness=thickness,
-        gate_voltage=gate_voltage,
-        mobility=None
-    )
-    particle_m = Particle(density=1, effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity)
-    pol = Topology.from_file(geometry, 1e-7)
-    e_field = Vector2(-1, 0) / (pol.bbox.xmax() - pol.bbox.xmin())
-    system = System(
-        particle=particle_m,
-        topology=pol,
-        material=mat,
-        electric_field=e_field,
-        max_collisions=100000,
-        max_time_simulation=mat.relax_time
-    )
-    exec_time = time.time()
-    system.simulate(system.simulate_drude, [1, 0])
-    exec_time = time.time() - exec_time
-
-    drude_analytical_current = drude_analytical_model(
-        width=float(pol.bbox.ymax() - pol.bbox.ymin()),
-        relax_time=mat.relax_time,
-        carrier_concentration=mat.carrier_concentration,
-        effective_mass=mat.effective_mass * electron_mass,
-        e_field=e_field
-    )
-    simulation_current = system.cal_current()
-    save_current('../outputs/currents.csv', simulation_current, geometry, e_field)
-    print(f'Time steps: {system.time_steps_count}')
-    print(f'Collisions: {system.collisions_count}')
-    print(f'Current:{simulation_current}')
-    print(f'Drude current: {drude_analytical_current}')
-    print(f'Execution time: {exec_time}')
+            particle.positions.append(particle_pos)

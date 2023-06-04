@@ -1,7 +1,8 @@
 import copy
+import itertools
+from skgeom import Bbox2, Vector2, Segment2
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
-from skgeom import Bbox2, Vector2, Point2, Segment2
 from utils.complementary_operations import mirror, vec_to_point
 
 
@@ -9,6 +10,9 @@ STOP_CONDITION = 10
 
 
 class Particle:
+    id_iter = itertools.count()
+
+
     def __init__(self, density: float, effective_mass: float, fermi_velocity: float, position=None):
         """
         Particle that will be simulated
@@ -18,6 +22,7 @@ class Particle:
         :param fermi_velocity: scalar Fermi velocity [m/s]
         :param position: initial position (if desired to define nonrandom initial position)
         """
+        self.id = next(Particle.id_iter)
         self.density = density
         self.charge = (-1) * elementary_charge * self.density
         self.effective_mass = effective_mass
@@ -26,18 +31,8 @@ class Particle:
         self.scalar_fermi_velocity = fermi_velocity
         self.fermi_velocity = None
         self.velocity = None
-        self._position = position
+        self.position = position
         self.positions = list()
-
-
-    @property
-    def position(self):
-        return self._position
-
-
-    @position.setter
-    def position(self, pos):
-        self._position = pos
 
 
     def __deepcopy__(self, memodict={}):
@@ -45,7 +40,10 @@ class Particle:
         result = cls.__new__(cls)
         memodict[id(self)] = result
         for k, v in self.__dict__.items():
-            setattr(result, k, copy.deepcopy(v, memodict))
+            if k == 'id':
+                setattr(result, k, next(cls.id_iter))
+            else:
+                setattr(result, k, copy.deepcopy(v, memodict))
         return result
 
 
@@ -106,12 +104,17 @@ class Particle:
         self.velocity = mirror(self.velocity, normal_vec)
 
 
-    def calc_drift_velocity(self, relax_time, electric_field: Vector2) -> Vector2:
+    def calc_drift_velocity(self, relax_time, electric_field: Vector2, mobility: float, method: str) -> Vector2:
         """
         Calculate particle drift velocity
 
         :param relax_time: material relaxation time
         :param electric_field: applied electric field
+        :param mobility: electronic material mobility
+        :param method: selected drift velocity method
         :return: drift velocity
         """
-        return self.charge * relax_time * electric_field / self.mass
+        if method == 'relax':
+            return self.charge * relax_time * electric_field / self.mass
+        else:
+            return mobility * electric_field

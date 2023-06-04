@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 from skgeom.draw import draw
 from matplotlib.widgets import Button
+from matplotlib.ticker import EngFormatter
 from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
 from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
@@ -177,6 +178,9 @@ class Topology:
         plots = {'direct': list(), 'reverse': list()}
         current_elements = {'direct': list(), 'reverse': list()}
         fig, ax = plt.subplots(num='Current elements choice', figsize=(9, 6))
+        formatter = EngFormatter(unit='m')
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
         draw(self.topologies)
         ax_select_segments = fig.add_axes(rect=[0.45, 0.9, 0.1, 0.05])
 

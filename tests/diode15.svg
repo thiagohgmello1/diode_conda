@@ -8,7 +8,7 @@
    version="1.1"
    id="svg5"
    inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
-   sodipodi:docname="test4.svg"
+   sodipodi:docname="diode14.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -24,9 +24,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="2.9540685"
-     inkscape:cx="362.21232"
-     inkscape:cy="227.48288"
+     inkscape:zoom="5.9081371"
+     inkscape:cx="69.565075"
+     inkscape:cy="60.25588"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="-8"
@@ -40,9 +40,10 @@
      inkscape:groupmode="layer"
      id="layer1">
     <path
-       style="fill:#000000;stroke:#000000;stroke-width:0.279;stroke-linecap:round;stroke-linejoin:round;paint-order:fill markers stroke"
-       d="M 0,0 0,4.6 0,5.4 0,10 5,5.4 5,4.6 Z"
-       id="path342"
-       sodipodi:nodetypes="ccccccccccc" />
+       style="fill:#000000;fill-opacity:1;stroke:none;stroke-width:1;stroke-linecap:round;stroke-linejoin:round;paint-order:stroke markers fill"
+       d="M 0,0 0,22.5 0,27.5 0,50 50,27.5 50,22.5 Z"
+	   
+       id="path389"
+       sodipodi:nodetypes="ccccc" />
   </g>
 </svg>

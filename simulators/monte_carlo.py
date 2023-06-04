@@ -1,6 +1,8 @@
 from skgeom import Vector2
+from model.system import System
 from scipy.constants import electron_mass
-from model.system import System, save_current
+from utils.post_processing import save_current
+from matplotlib.ticker import EngFormatter
 from simulators.drude_analytical import drude_analytical_model
 
 
@@ -16,26 +18,27 @@ def monte_carlo(
         max_coll,
         n_particles=1000
 ):
-    for vol in voltage_range:
-        voltages.append(-vol)
-        vol = [vol, 0]
-        e_field = Vector2(*vol) / (topology.bbox.xmax() - topology.bbox.xmin())
+    for volt in voltage_range:
+        eng_formatter = EngFormatter(places=4, unit='A')
+        voltages.append(volt)
+        volt_vec = [-volt, 0]
+        # For now, simulator considers only x electric fields
+        e_field = Vector2(*volt_vec) / (topology.bbox.xmax() - topology.bbox.xmin())
         system = System(
             topology=topology,
             material=material,
             particle=particle_model,
             electric_field=e_field,
             max_collisions=max_coll,
-            max_time_simulation=material.relax_time,
             number_of_particles=n_particles
         )
-        system.simulate(system.simulate_drude, vol)
+        system.simulate(system.simulate_drude, volt)
         simulation_current = system.cal_current()
         currents.append(simulation_current)
-        save_current('outputs/currents.csv', simulation_current, geo, vol)
+        save_current('outputs/currents.csv', simulation_current, geo, volt)
 
-        print(f"Voltage: {'%s' % float('%.1g' % vol[0])}")
-        print(f'Current:{simulation_current}')
+        print(f"Voltage: {'%s' % float('%.1g' % volt)}")
+        print(f"Current:{eng_formatter.format_eng(num=simulation_current)}A")
 
         if 'rectangle' in geo:
             drude_current = drude_analytical_model(
@@ -45,7 +48,7 @@ def monte_carlo(
                 carrier_concentration=material.carrier_concentration,
                 effective_mass=material.effective_mass * electron_mass
             )
-            save_current('outputs/currents.csv', drude_current, geo, vol)
+            save_current('outputs/currents.csv', drude_current, geo, volt)
             drude_currents.append(drude_current)
             print(f'Drude current: {drude_current}')
 
