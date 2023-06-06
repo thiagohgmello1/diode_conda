@@ -40,7 +40,7 @@ def plot_figs(asymmetric_voltages, curr_voltages, asymmetry, current, drude_curr
     plt.savefig(f'outputs/currents.png', dpi=fig_iv.dpi)
 
 
-def save_current(current_file: str, meas_current: float, simulated_geometry: str, volt: float):
+def save_current(current_file: str, meas_current: float, simulated_geometry: str, volt: float, id_tracker: str):
     """
     Save calculated current
 
@@ -48,12 +48,14 @@ def save_current(current_file: str, meas_current: float, simulated_geometry: str
     :param current_file: output file
     :param meas_current: calculated current
     :param simulated_geometry: .svg simulated file
+    :param id_tracker: id used to track simulation
     :return: None
     """
     now = datetime.now()
     date_string = now.strftime("%d/%m/%Y %H:%M:%S")
     with open(current_file, 'a') as f:
-        string_to_be_saved = f'{date_string};{simulated_geometry};{meas_current};{"%s" % float("%.1g" % volt)}\n'
+        string_to_be_saved = \
+            f'{date_string};{simulated_geometry};{meas_current};{"%s" % float("%.1g" % volt)};{id_tracker}\n'
         f.write(string_to_be_saved)
 
 

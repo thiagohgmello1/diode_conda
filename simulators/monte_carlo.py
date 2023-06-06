@@ -16,7 +16,9 @@ def monte_carlo(
         drude_currents,
         geo,
         max_coll,
-        n_particles=1000
+        n_particles=1000,
+        out_file='currents',
+        id_tracker='test'
 ):
     for volt in voltage_range:
         eng_formatter = EngFormatter(places=4, unit='A')
@@ -35,7 +37,7 @@ def monte_carlo(
         system.simulate(system.simulate_drude, volt)
         simulation_current = system.cal_current()
         currents.append(simulation_current)
-        save_current('outputs/currents.csv', simulation_current, geo, volt)
+        save_current(f'outputs/{out_file}.csv', simulation_current, geo, volt, id_tracker)
 
         print(f"Voltage: {'%s' % float('%.1g' % volt)}")
         print(f"Current:{eng_formatter.format_eng(num=simulation_current)}A")
@@ -48,7 +50,7 @@ def monte_carlo(
                 carrier_concentration=material.carrier_concentration,
                 effective_mass=material.effective_mass * electron_mass
             )
-            save_current('outputs/currents.csv', drude_current, geo, volt)
+            save_current(f'outputs/{out_file}.csv', drude_current, geo, volt, id_tracker)
             drude_currents.append(drude_current)
             print(f'Drude current: {drude_current}')
 

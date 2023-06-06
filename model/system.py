@@ -17,7 +17,6 @@ TEST = False
 followed_particle_id = 1
 TIME_PRECISION = 0.99
 SIGNIFICANT_DIGITS = 4
-BREAK_MAX = 1000
 matplotlib.use('TkAgg')
 
 
