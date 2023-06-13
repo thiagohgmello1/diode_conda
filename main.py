@@ -74,6 +74,7 @@ if __name__ == '__main__':
     if args.multi:
         files = Path(f'parameters/{args.multi}').glob('*')
         for file_sim in files:
+            print(f'File: {file_sim}')
             exec_time_aux, vol_asy_aux, asymmetry_aux, voltages_aux, curr_aux, drude_curr_aux = \
                 simulate(file_sim, args.output, args.id)
             exec_time_list.append(exec_time_aux)
@@ -82,8 +83,10 @@ if __name__ == '__main__':
             voltages_list.append(voltages_aux)
             curr_list.append(curr_aux)
             drude_curr_list.append(drude_curr_aux)
+            print(f'Execution time: {"%s" % float("%.3g" % (exec_time_aux / 60))} min')
     else:
         file = Path(f'parameters/{args.single}.json')
+        print(f'File: {file}')
         exec_time_aux, vol_asy_aux, asymmetry_aux, voltages_aux, curr_aux, drude_curr_aux = \
             simulate(file, args.output, args.id)
         plot_figs(vol_asy_aux, voltages_aux, asymmetry_aux, curr_aux, drude_curr_aux)
