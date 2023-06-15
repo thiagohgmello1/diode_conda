@@ -1,7 +1,6 @@
 import matplotlib
 import numpy as np
 import multiprocessing
-import matplotlib.pyplot as plt
 
 from math import log10, floor
 from model.particle import Particle
@@ -51,7 +50,7 @@ class System:
         self.relax_time = self.material.relax_time
 
         self.total_macro_particles = len(self.particles) * particle.density
-        self.particle_counter = 0
+        self.particles_counter = 0
 
         self.simulated_time = 0
 
@@ -151,7 +150,7 @@ class System:
         while not stop_conditions:
             traveled_path = particle.calc_next_position(remaining_time)
             intersection_points = self.topology.intersection_points(traveled_path)
-            lowest_time_to_collision, closest_collision_segment, next_pos = self._calc_closer_intersection(
+            lowest_time_to_collision, closest_collision_segment, next_pos = self.calc_closer_intersection(
                 remaining_time, particle.velocity, intersection_points, traveled_path, particle
             )
             particle_p0 = vec_to_point(particle.position)
@@ -195,10 +194,10 @@ class System:
         :return: string indicating segment group
         """
         if collided_element and collided_element in self.topology.current_computing_elements['direct']:
-            self.particle_counter += self.particles[0].density
+            self.particles_counter += self.particles[0].density
             return True, 'reverse'
         elif collided_element and collided_element in self.topology.current_computing_elements['reverse']:
-            self.particle_counter -= self.particles[0].density
+            self.particles_counter -= self.particles[0].density
             return True, 'direct'
         return False, ''
 
@@ -215,7 +214,7 @@ class System:
         particle.position = point_to_vec(pos)
 
 
-    def _calc_closer_intersection(
+    def calc_closer_intersection(
             self,
             remaining_time,
             particle_velocity: Vector2,
@@ -226,11 +225,14 @@ class System:
         """
         Define closer intersection between particle path and geometries boundaries
 
-        :param intersection_points: list of points where collision can occur
+        :param remaining_time: time until scattering process
         :param particle_velocity: possible particle velocity
+        :param intersection_points: list of points where collision can occur
         :param traveled_path: corresponding particle path
+        :param particle: simulated particle
         :return lowest_time_to_collision: the lowest time to collision
         :return lowest_collision_segment: collided segment
+        :return next_pos: particle next position
         """
         lowest_time_to_collision = remaining_time
         next_pos = None
@@ -256,7 +258,7 @@ class System:
         """
         carrier_concentration = self.material.carrier_concentration
         current = (
-                          carrier_concentration * self.topology.area * elementary_charge * self.particle_counter
+                          carrier_concentration * self.topology.area * elementary_charge * self.particles_counter
                   ) / (self.simulated_time * self.total_macro_particles)
         return current
 
