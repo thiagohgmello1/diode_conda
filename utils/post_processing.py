@@ -1,7 +1,5 @@
 import matplotlib.pyplot as plt
 
-from datetime import datetime
-
 from matplotlib.ticker import EngFormatter
 
 
@@ -38,38 +36,6 @@ def plot_figs(asymmetric_voltages, curr_voltages, asymmetry, current, drude_curr
     plt.grid(True)
     plt.ticklabel_format(axis='y', style='sci', scilimits=(0, 0))
     plt.savefig(f'outputs/currents.png', dpi=fig_iv.dpi)
-
-
-def save_current(current_file: str, meas_current: float, simulated_geometry: str, volt: float, id_tracker: str):
-    """
-    Save calculated current
-
-    :param volt: applied voltage
-    :param current_file: output file
-    :param meas_current: calculated current
-    :param simulated_geometry: .svg simulated file
-    :param id_tracker: id used to track simulation
-    :return: None
-    """
-    now = datetime.now()
-    date_string = now.strftime("%d/%m/%Y %H:%M:%S")
-    with open(current_file, 'a') as f:
-        string_to_be_saved = \
-            f'{date_string};{simulated_geometry};{meas_current};{"%s" % float("%.1g" % volt)};{id_tracker}\n'
-        f.write(string_to_be_saved)
-
-
-def progress_bar(progress, total):
-    """
-    Print progress bar
-
-    :param progress: evolved situation
-    :param total: expect max situation
-    :return: None
-    """
-    percent = 100 * (progress / total)
-    bar = '█' * int(percent) + '-' * (100 - int(percent))
-    print(f'\r|{bar}| {percent:.2f}%', end='\r')
 
 
 def plot_stable_current(currents, voltage):
