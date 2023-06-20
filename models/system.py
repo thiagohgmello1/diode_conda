@@ -39,6 +39,17 @@ class System:
         self.collisions_count = 0
 
 
+    def reset_performance_params(self):
+        """
+        Reset all performance parameters for the next simulation
+        :return:
+        """
+        self.particles_counter = 0
+        self.simulated_time = 0
+        self.time_steps_count = 0
+        self.collisions_count = 0
+
+
     def set_particles_parameters(self):
         """
         Set particles initial position and Fermi velocity
@@ -54,8 +65,6 @@ class System:
         min_range = (self.topology.bbox.xmin(), self.topology.bbox.ymin())
         max_range = (self.topology.bbox.xmax(), self.topology.bbox.ymax())
 
-        self.particles.set_velocity_fermi()
-        self.particles.set_velocity_total()
         for particle in self.particles.particles_list:
             particle.position, init_pos, lowest_dist = set_pos(min_range, max_range)
 
@@ -145,6 +154,16 @@ class System:
         self.particles.set_velocity_drift(self.material.relax_time, self.electric_field, particle)
 
 
+    def scatter_particles(self, particle: Particle = None):
+        """
+        Scatter all particles or specific particle
+        :param particle: specified particle
+        :return:
+        """
+        self.particles.set_velocity_fermi(particle)
+        self.particles.set_velocity_total(particle)
+
+
     @staticmethod
     def _time_to_collision(particle: Particle, position: Point2) -> float:
         """
@@ -159,6 +178,11 @@ class System:
 
     @staticmethod
     def chose_topology(geometry_dict) -> Topology:
+        """
+        Chose how to set topology
+        :param geometry_dict: input dictionary
+        :return: Topology instance
+        """
         geometry_type = geometry_dict['input_style']
         del geometry_dict['input_style']
         if geometry_type == 'file':

@@ -5,7 +5,7 @@ from skgeom import Vector2
 class ElectricField:
     def __init__(self):
         self.max_mag = 0
-        self.field_dir = np.array([1, 0])
+        self.field_dir = np.array([-1, 0])
         self.vector = lambda vec: self.max_mag
 
 

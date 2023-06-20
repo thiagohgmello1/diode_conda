@@ -12,7 +12,7 @@ class Drude(Method):
 
     def simulate(self, particle):
         self.system.set_particle_velocity_drift(particle)
-        particle.velocity_total += particle.velocity_drift
+        particle.velocity_total = particle.velocity_drift + particle.velocity_fermi
         remaining_time = self.system.material.relax_time
 
         stop_conditions = np.isclose(

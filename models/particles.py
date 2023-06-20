@@ -1,9 +1,9 @@
 from skgeom import Vector2
 
-from models.electric_field import ElectricField
 from models.particle import Particle
-from utils.complementary_operations import vec_to_point
+from models.electric_field import ElectricField
 from utils.probabilistic_operations import random_vec
+from utils.complementary_operations import vec_to_point
 from scipy.constants import elementary_charge, electron_mass
 
 
@@ -48,12 +48,15 @@ class Particles:
         particle.velocity_drift = self.charge * relax_time * electric_field.vector(particle.position) / self.mass
 
 
-    def set_velocity_total(self):
+    def set_velocity_total(self, particle: Particle = None):
         """
         Set particle total velocity as a composition of Fermi velocity and drift velocity
         :return:
         """
-        for particle in self.particles_list:
+        if not particle:
+            for particle in self.particles_list:
+                particle.velocity_total = particle.velocity_fermi + particle.velocity_drift
+        else:
             particle.velocity_total = particle.velocity_fermi + particle.velocity_drift
 
 

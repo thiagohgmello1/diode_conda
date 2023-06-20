@@ -43,18 +43,10 @@ class MonteCarlo(Solver):
             self.currents.append(calc_current)
             partial_exec_times = time.time() - partial_exec_times
             self.partial_exec_times.append(partial_exec_times)
-
-            print(f"Voltage: {'%s' % float('%.1g' % voltage)}")
             self.compare_sim()
-            print(f"Current:{self.eng_formatter.format_eng(num=self.currents[-1])}A")
-            print(f'Time steps: {self.system.time_steps_count}')
-            print(f'Collisions: {self.system.collisions_count}')
-            print(f'-' * 100)
-            print('\r')
-            self.system.collisions_count = 0
-            self.system.time_steps_count = 0
-            self.system.simulated_time = 0
-        return self.voltages, self.currents, self.compare_currents
+            self.print_data()
+            self.system.reset_performance_params()
+        return self.voltages, self.currents, self.compare_currents, self.partial_exec_times
 
 
     def simulate_stop_cond(self):
@@ -67,6 +59,7 @@ class MonteCarlo(Solver):
             self.system.time_steps_count += 1
             self.simulate_particles()
             self.progress_bar(self.system.collisions_count, self.max_collisions)
+        print('\r')
 
 
     def simulate_particles(self):
@@ -75,6 +68,7 @@ class MonteCarlo(Solver):
 
         :return:
         """
+        self.system.scatter_particles()
         for particle in self.system.particles.particles_list:
             self.method.simulate(particle)
             if self.stop_conditions():
@@ -90,8 +84,19 @@ class MonteCarlo(Solver):
                 carrier_concentration=self.system.material.carrier_concentration,
                 effective_mass=self.system.material.effective_mass * electron_mass
             )
-            self.compare_currents = drude_current
-            print(f'Drude current: {drude_current}')
+            self.compare_currents.append(drude_current)
+
+
+    def print_data(self):
+        print('\n')
+        print(f"Voltage: {'%s' % float('%.1g' % self.voltages[-1])}")
+        print(f"Current:{self.eng_formatter.format_eng(num=self.currents[-1])}A")
+        if 'rectangle' in self.geo:
+            print(f'Drude current: {self.eng_formatter.format_eng(num=self.compare_currents[-1])}A')
+        print(f'Time steps: {self.system.time_steps_count}')
+        print(f'Collisions: {self.system.collisions_count}')
+        print(f'-' * 100)
+        print('\r')
 
 
 
