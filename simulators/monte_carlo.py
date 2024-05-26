@@ -18,7 +18,8 @@ def monte_carlo(
         max_coll,
         n_particles=1000,
         out_file='currents',
-        id_tracker='test'
+        id_tracker='test',
+        check_condition='time'
 ):
     for volt in voltage_range:
         eng_formatter = EngFormatter(places=4, unit='A')
@@ -32,7 +33,8 @@ def monte_carlo(
             particle=particle_model,
             electric_field=e_field,
             max_collisions=max_coll,
-            number_of_particles=n_particles
+            number_of_particles=n_particles,
+            check_condition=check_condition
         )
         system.simulate(system.simulate_drude, volt)
         simulation_current = system.cal_current()

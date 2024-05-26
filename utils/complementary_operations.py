@@ -15,14 +15,14 @@ def dot_prod(vec_1: Vector2, vec_2: Vector2) -> float:
     return float(x + y)
 
 
-def norm(vec: Vector2) -> float:
+def norm(param) -> float:
     """
     Calculate vector norm
 
-    :param vec: vector
+    :param param: vector, segment, or any other object that has 'squared_length' method
     :return: vector norm
     """
-    return np.sqrt(float(vec.squared_length()))
+    return np.sqrt(float(param.squared_length()))
 
 
 def angle_between(vec_1: Vector2, vec_2: Vector2) -> float:
@@ -146,3 +146,9 @@ def calc_distance_between(segment: Segment2, point: Point2):
         dist_2 = point - point_2
         dist_2 = np.sqrt(float(dist_2.x()) ** 2 + float(dist_2.y()) ** 2)
         return min(dist_1, dist_2)
+
+
+def calc_versor(vec: Vector2):
+    length = norm(vec)
+    versor = vec / length
+    return versor

@@ -1,9 +1,10 @@
 import copy
 import itertools
+from skgeom.draw import draw
 from skgeom import Bbox2, Vector2, Segment2
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
-from utils.complementary_operations import mirror, vec_to_point
+from utils.complementary_operations import mirror, vec_to_point, calc_versor
 
 
 STOP_CONDITION = 10
@@ -13,7 +14,7 @@ class Particle:
     id_iter = itertools.count()
 
 
-    def __init__(self, density: float, effective_mass: float, fermi_velocity: float, position=None):
+    def __init__(self, density: float, drift_method: str, effective_mass: float, fermi_velocity: float, position=None):
         """
         Particle that will be simulated
 
@@ -33,6 +34,7 @@ class Particle:
         self.velocity = None
         self.position = position
         self.positions = list()
+        self.drift_method = drift_method
 
 
     def __deepcopy__(self, memodict={}):
@@ -80,18 +82,21 @@ class Particle:
         return acceleration
 
 
-    def calc_next_position(self, delta_t: float) -> Segment2:
+    def calc_next_position(self, delta_t: float, delta_s: float, check_condition) -> Vector2:
         """
         Calculate next particle position according kinematic equations for uniformly varied motion
 
         :param delta_t: time interval
+        :param delta_s: distance interval
+        :param check_condition: id to identify which method should be used to calculate next position
         :return: line segment that connect initial and final particle positions
         """
-        next_pos = self.position + self.velocity * delta_t
-        p_0 = vec_to_point(self.position)
-        p_1 = vec_to_point(next_pos)
-        path = Segment2(p_0, p_1)
-        return path
+        if check_condition == "time":
+            next_pos = self.position + self.velocity * delta_t
+        else:
+            next_pos = self.position + calc_versor(self.velocity) * delta_s
+
+        return next_pos
 
 
     def mirror_particle(self, normal_vec):
@@ -114,7 +119,14 @@ class Particle:
         :param method: selected drift velocity method
         :return: drift velocity
         """
-        if method == 'relax':
+        if self.drift_method == 'relax':
             return self.charge * relax_time * electric_field / self.mass
         else:
-            return mobility * electric_field
+            return -mobility * electric_field
+
+
+    def plot_traveled_path(self):
+        pos0 = self.positions[0]
+        for pos in self.positions[1:]:
+            draw(Segment2(pos0, pos))
+            pos0 = pos

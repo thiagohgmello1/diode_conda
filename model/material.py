@@ -7,11 +7,12 @@ class Material:
             self,
             carrier_concentration: dict,
             scalar_fermi_velocity: float,
+            mean_free_path: float,
             mobility: float = None,
-            mean_free_path: float = None,
             relax_time: float = None,
             permittivity: float = 1,
-            permeability: float = 1
+            permeability: float = 1,
+            effective_mass: float = None
     ):
         """
         Represent the chosen material. All values must be in international system (m, s, etc.)
@@ -24,14 +25,13 @@ class Material:
         :param permittivity: electric permittivity (F/m)
         :param permeability: magnetic permeability (H/m)
         """
-        self.relax_time = relax_time
         self.scalar_fermi_velocity = scalar_fermi_velocity
-        self._calc_mean_free_path(mean_free_path)
-        self._calc_relax_time()
+        self.mean_free_path = mean_free_path
+        self.relax_time = self._calc_relax_time(relax_time)
         self.permittivity = permittivity
         self.permeability = permeability
         self.carrier_concentration = self._calc_carrier_concentration(carrier_concentration)
-        self.effective_mass = self._calc_effective_mass()
+        self.effective_mass = self._calc_effective_mass(effective_mass)
         self.mobility = self._calc_mobility(mobility)
 
 
@@ -52,13 +52,17 @@ class Material:
         return carrier_concentration
 
 
-    def _calc_effective_mass(self):
+    def _calc_effective_mass(self, effective_mass):
         """
         Calculate relative effective particle mass. From E=m_{e}v_{*}^2
 
         :return: effective particle mass
         """
-        return (h * np.sqrt(self.carrier_concentration / pi)) / (2 * self.scalar_fermi_velocity * electron_mass)
+        if not effective_mass:
+            return (h * np.sqrt(self.carrier_concentration / pi)) /\
+                                  (2 * self.scalar_fermi_velocity * electron_mass)
+        else:
+            return effective_mass
 
 
     def _calc_mean_free_path(self, mean_free_path):
@@ -68,14 +72,16 @@ class Material:
             self.mean_free_path = mean_free_path
 
 
-    def _calc_relax_time(self):
+    def _calc_relax_time(self, relax_time):
         """
         Calculate relaxation time (if not specified)
 
         :return: relaxation time
         """
-        if not self.relax_time:
-            self.relax_time = self.mean_free_path / self.scalar_fermi_velocity
+        if not relax_time:
+            return self.mean_free_path / self.scalar_fermi_velocity
+        else:
+            return relax_time
 
 
     def _calc_mobility(self, mobility):
@@ -83,7 +89,7 @@ class Material:
         Calculate material mobility
 
         :param mobility: input mobility (if specified)
-        :return: mobility
+        :return: None
         """
         if not mobility:
             return elementary_charge * self.relax_time / (self.effective_mass * electron_mass)
