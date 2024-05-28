@@ -17,6 +17,7 @@ followed_particle_id = 1
 TIME_PRECISION = 0.99
 DIST_PRECISION = 0.99
 SIGNIFICANT_DIGITS = 4
+MAX_LOOP = 200
 matplotlib.use('TkAgg')
 
 
@@ -103,12 +104,13 @@ class System:
                 particle.positions.append(init_pos)
 
 
-    def simulate(self, model, voltage: list):
+    def simulate(self, model, voltage: list, plot_current: bool = True):
         """
         Simulate complete system
 
         :param voltage: simulated voltage
         :param model: desired model to simulate. Must be a method callback (ex.: simulate_drude method)
+        :param plot_current: define if stable current will be plotted
         :return: None
         """
         self.set_particle_parameters()
@@ -116,13 +118,15 @@ class System:
             self.time_steps_count += 1
             particle = self.particles[0]
             particle.set_velocity()
-            traveled_time = model(particle)
-            self.simulated_time += traveled_time
-            if self._stop_conditions():
-                break
-            self.currents.append(self.cal_current())
-            progress_bar(self.collisions_count, self.max_collisions)
-        plot_stable_current(self.currents, voltage)
+            traveled_time, loop_condition = model(particle)
+            if not loop_condition:
+                self.simulated_time += traveled_time
+                if self._stop_conditions():
+                    break
+                self.currents.append(self.cal_current())
+                progress_bar(self.collisions_count, self.max_collisions)
+        if plot_current:
+            plot_stable_current(self.currents, voltage)
         print('\n')
 
 
@@ -147,12 +151,13 @@ class System:
         """
         drift_velocity = particle.calc_drift_velocity(self.relax_time, self.e_field, self.material.mobility, 'relax')
         particle.velocity += drift_velocity
+        count_loop = 0
 
         remaining_time = self.relax_time
         remaining_dist = self.material.mean_free_path
-        stop_conditions = self._calc_stop_conditions(remaining_time, remaining_dist)
+        stop_conditions, loop_cond = self._calc_stop_conditions(remaining_time, remaining_dist, count_loop)
 
-        while not stop_conditions:
+        while not (stop_conditions or loop_cond):
             traveled_path = self.calc_traveled_path(remaining_time, remaining_dist, particle)
             intersection_points = self.topology.intersection_points(traveled_path)
             lowest_time_to_collision, lowest_dist_to_collision, closest_collision_segment, next_pos = \
@@ -161,15 +166,16 @@ class System:
             particle_p0 = vec_to_point(particle.position)
             particle.position = next_pos
 
-            # if not self.topology.contains(vec_to_point(particle.position)):
-            #     raise Exception('Particle is outside geometry')
+            if not self.topology.contains(vec_to_point(particle.position)):
+                raise Exception('Particle is outside geometry')
 
             collision_normal_vec = calc_normal(closest_collision_segment, particle_p0)
             self.check_current_segment_collision(particle, closest_collision_segment, collision_normal_vec)
             remaining_time -= lowest_time_to_collision
             remaining_dist -= lowest_dist_to_collision
             self.save_particle_data(particle)
-            stop_conditions = self._calc_stop_conditions(remaining_time, remaining_dist)
+            count_loop += 1
+            stop_conditions, loop_cond = self._calc_stop_conditions(remaining_time, remaining_dist, count_loop)
 
         if self.check_condition == "time":
             traveled_time = self.relax_time
@@ -177,7 +183,7 @@ class System:
             velocity_norm = norm(particle.velocity)
             traveled_time = self.material.mean_free_path / velocity_norm
 
-        return traveled_time
+        return traveled_time, loop_cond
 
 
     def calc_traveled_path(self, delta_t: float, delta_s: float, particle: Particle) -> Segment2:
@@ -316,12 +322,13 @@ class System:
         return current
 
 
-    def _calc_stop_conditions(self, remaining_time, remaining_dist):
+    def _calc_stop_conditions(self, remaining_time, remaining_dist, count_loop):
         """
         Calculate stop conditions
         :param remaining_time: defined remaining_time
         :param remaining_dist: defined remaining_dist
-        :return:
+        :param count_loop: check if loop is still executing
+        :return: bool
         """
         if self.check_condition == "time":
             stop_conditions = np.isclose(
@@ -329,7 +336,10 @@ class System:
         else:
             stop_conditions = np.isclose(
                 remaining_dist, 0, atol=10 ** (-self.significant_digits_dist)) or remaining_dist < 0
-        return stop_conditions
+        if count_loop >= MAX_LOOP:
+            print("Max loop iterations")
+            return stop_conditions, True
+        return stop_conditions, False
 
 
     @staticmethod

@@ -7,6 +7,33 @@ from simulators.drude_analytical import drude_analytical_model
 
 
 def monte_carlo(
+        volt,
+        topology,
+        material,
+        particle_model,
+        max_coll,
+        n_particles=100,
+        check_condition='time',
+        plot_current=True
+):
+    volt_vec = [-volt, 0]
+    # For now, simulator considers only x electric fields
+    e_field = Vector2(*volt_vec) / (topology.bbox.xmax() - topology.bbox.xmin())
+    system = System(
+        topology=topology,
+        material=material,
+        particle=particle_model,
+        electric_field=e_field,
+        max_collisions=max_coll,
+        number_of_particles=n_particles,
+        check_condition=check_condition
+    )
+    system.simulate(system.simulate_drude, volt, plot_current)
+    simulation_current = system.cal_current()
+    return e_field, simulation_current, system.time_steps_count, system.collisions_count
+
+
+def monte_carlo_non_opt(
         voltage_range,
         topology,
         material,
@@ -16,7 +43,7 @@ def monte_carlo(
         drude_currents,
         geo,
         max_coll,
-        n_particles=1000,
+        n_particles=100,
         out_file='currents',
         id_tracker='test',
         check_condition='time'
@@ -24,20 +51,9 @@ def monte_carlo(
     for volt in voltage_range:
         eng_formatter = EngFormatter(places=4, unit='A')
         voltages.append(volt)
-        volt_vec = [-volt, 0]
-        # For now, simulator considers only x electric fields
-        e_field = Vector2(*volt_vec) / (topology.bbox.xmax() - topology.bbox.xmin())
-        system = System(
-            topology=topology,
-            material=material,
-            particle=particle_model,
-            electric_field=e_field,
-            max_collisions=max_coll,
-            number_of_particles=n_particles,
-            check_condition=check_condition
+        e_field, simulation_current, time_steps_count, collisions_count = monte_carlo(
+            volt, topology, material, particle_model, max_coll, n_particles, check_condition
         )
-        system.simulate(system.simulate_drude, volt)
-        simulation_current = system.cal_current()
         currents.append(simulation_current)
         save_current(f'outputs/{out_file}.csv', simulation_current, geo, volt, id_tracker)
 
@@ -56,7 +72,7 @@ def monte_carlo(
             drude_currents.append(drude_current)
             print(f'Drude current: {drude_current}')
 
-        print(f'Time steps: {system.time_steps_count}')
-        print(f'Collisions: {system.collisions_count}')
+        print(f'Time steps: {time_steps_count}')
+        print(f'Collisions: {collisions_count}')
         print(f'-' * 100)
         print('\r')

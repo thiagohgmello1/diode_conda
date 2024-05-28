@@ -7,7 +7,8 @@ from pathlib import Path
 from model.particle import Particle
 from model.topology import Topology
 from model.material import Material
-from simulators.monte_carlo import monte_carlo
+from model.optimizer import Optimizer
+from simulators.monte_carlo import monte_carlo_non_opt
 from utils.post_processing import calc_asymmetry, plot_figs
 
 
@@ -27,31 +28,51 @@ def chose_topology(geometry_dict) -> Topology:
         return Topology.from_points(**geometry_dict)
 
 
-def simulate(file_name: Path, out_file, id_tracker):
-    currents = list()
-    drude_currents = list()
-    voltages = list()
-
+def create_basic_elements(file_name: Path):
     with open(file_name) as f:
         data = json.load(f)
-
-    voltage = create_voltage_range(**data['voltage'])
 
     mat = Material(**data['material'])
     particle_m = Particle(
         **data['particle'], effective_mass=mat.effective_mass, fermi_velocity=mat.scalar_fermi_velocity
     )
+    convergence = data['convergence']
+
+    return mat, particle_m, convergence
+
+
+def simulate(file_name: Path, out_file, id_tracker):
+    currents = list()
+    drude_currents = list()
+    voltages = list()
+
+    mat, particle_m, convergence = create_basic_elements(file_name)
+    with open(file_name) as f:
+        data = json.load(f)
     pol = chose_topology(data['geometry'])
 
+    voltage = create_voltage_range(**data['voltage'])
     exec_time = time.time()
-
-    monte_carlo(voltage, pol, mat, particle_m, voltages, currents, drude_currents, **data['convergence'],
-                out_file=out_file, id_tracker=id_tracker)
+    monte_carlo_non_opt(voltage, pol, mat, particle_m, voltages, currents, drude_currents, **convergence,
+                        out_file=out_file, id_tracker=id_tracker)
     exec_time = time.time() - exec_time
-
     vol_asy, asymmetry = calc_asymmetry(currents, voltages)
 
     return exec_time, vol_asy, asymmetry, voltages, currents, drude_currents
+
+
+def optimize(file_name: Path):
+    mat, particle_m, convergence = create_basic_elements(file_name)
+    convergence.pop("geo")
+
+    with open(file_name) as f:
+        data = json.load(f)
+    opt = Optimizer(**data['optimizer'], material=mat, particle_model=particle_m, convergence=convergence,
+                    scale=data['geometry']['scale'])
+    result, exec_time = opt.optimize()
+    print(result)
+
+    return exec_time
 
 
 if __name__ == '__main__':
@@ -61,6 +82,7 @@ if __name__ == '__main__':
     group.add_argument('--single', '--s', type=str, help="Define simulation file for single-simulation")
     parser.add_argument('--output', '--o', default='currents', type=str, help='Current save output file name')
     parser.add_argument('--id', type=str, help='ID code used to track simulation. Can be a string without whitespace')
+    parser.add_argument('--opt', type=bool, default=False, help='Optimization')
 
     args = parser.parse_args()
 
@@ -87,7 +109,11 @@ if __name__ == '__main__':
     else:
         file = Path(f'parameters/{args.single}.json')
         print(f'File: {file}')
-        exec_time_aux, vol_asy_aux, asymmetry_aux, voltages_aux, curr_aux, drude_curr_aux = \
-            simulate(file, args.output, args.id)
-        plot_figs(vol_asy_aux, voltages_aux, asymmetry_aux, curr_aux, drude_curr_aux)
+        if not args.opt:
+            exec_time_aux, vol_asy_aux, asymmetry_aux, voltages_aux, curr_aux, drude_curr_aux = \
+                simulate(file, args.output, args.id)
+            plot_figs(vol_asy_aux, voltages_aux, asymmetry_aux, curr_aux, drude_curr_aux)
+        else:
+            exec_time_aux = optimize(file)
+
         print(f'Execution time: {"%s" % float("%.3g" % (exec_time_aux / 60))} min')

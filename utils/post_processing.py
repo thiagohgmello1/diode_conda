@@ -79,4 +79,4 @@ def plot_stable_current(currents, voltage):
     ax.set_xlabel('time step')
     ax.set_ylabel('Current [A]')
     plt.savefig(f"outputs/current_stable/currents{'%s' % float('%.1g' % voltage)}.png", dpi=fig_curr.dpi)
-    plt.clf()
+    plt.close(fig_curr)

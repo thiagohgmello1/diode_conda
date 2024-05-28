@@ -8,16 +8,20 @@ from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
 from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
 from utils.probabilistic_operations import random_int_number, random_pos_in_segment
-from utils.complementary_operations import calc_distance_between, calc_normal, segment_to_vec, dot_prod
+from utils.complementary_operations import calc_distance_between, calc_normal, segment_to_vec, dot_prod, point_to_vec
+
+
+DIST_PRECISION = 0.99
 
 
 class Topology:
-    def __init__(self, topologies: list[Polygon], scale: float):
+    def __init__(self, topologies: list[Polygon], scale: float, opt: tuple = ()):
         """
         Create simulated topology
 
         :param topologies: list of polygon that form desired topology to be simulated
         :param scale: length scale (m) (i.e. 1e-9 for nanometer)
+        :param opt: define if geometry will be generated for optimization
         """
         topologies = self._set_orientation(topologies)
         self.bbox = None
@@ -29,7 +33,7 @@ class Topology:
         self._get_segments()
         self.scale = scale
         self.current_computing_elements = {'direct': list(), 'reverse': list()}
-        self._get_current_computing_elements()
+        self._get_current_computing_elements(opt)
         print(self.current_computing_elements)
 
     @classmethod
@@ -45,18 +49,19 @@ class Topology:
         return cls(topologies.get_geometries(), scale)
 
     @classmethod
-    def from_points(cls, points: list[list], scale: float):
+    def from_points(cls, points: list[list], scale: float, optimization: tuple = ()):
         """
         Create topology from specified points
 
         :param points: geometry vertices
         :param scale: scale dimension (ex.: 1e-6; 1e-9)
+        :param optimization: optimization parameters
         :return: class instantiation
         """
         topologies = list()
         for geometry in points:
             topologies.append(Polygon(cls._create_points(geometry, scale)))
-        return cls(topologies, scale)
+        return cls(topologies, scale, optimization)
 
     def calc_topology_area(self):
         area = {'external': 0, 'internal': 0}
@@ -72,7 +77,7 @@ class Topology:
         :param point: point to be checked
         :return: boolean indicating if point is or is not inside geometry
         """
-        return self.topologies.locate(point)
+        return bool(self.topologies.locate(point))
 
     def _get_boundaries_polygons(self):
         """
@@ -153,7 +158,8 @@ class Topology:
                 intersection_point = intersection(segment, traveled_path)
                 segment_normal_vec = calc_normal(segment, actual_pos)
                 segments_product = dot_prod(pos_vec, segment_normal_vec)
-                if intersection_point and segments_product < 0:
+                if intersection_point and (segments_product < 0):
+                    intersection_point = traveled_path[0] - DIST_PRECISION * (traveled_path[0] - intersection_point)
                     intersection_points.append([intersection_point, segment])
         return intersection_points
 
@@ -174,7 +180,21 @@ class Topology:
                     selected_segment = segment
         return selected_segment, min_distance
 
-    def _get_current_computing_elements(self):
+
+    def _get_current_computing_elements(self, opt):
+        if opt:
+            self._current_elements_from_points(opt)
+        else:
+            self._current_elements_from_image()
+
+
+    def _current_elements_from_points(self, edges_tuple: tuple):
+        segments = sum(self.segments.values(), [])
+        [self.current_computing_elements['direct'].append(segments[i]) for i in edges_tuple[0]]
+        [self.current_computing_elements['reverse'].append(segments[i]) for i in edges_tuple[1]]
+
+
+    def _current_elements_from_image(self):
         plots = {'direct': list(), 'reverse': list()}
         current_elements = {'direct': list(), 'reverse': list()}
         fig, ax = plt.subplots(num='Current elements choice', figsize=(9, 6))
