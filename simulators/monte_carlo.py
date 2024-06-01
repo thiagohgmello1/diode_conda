@@ -52,7 +52,7 @@ def monte_carlo_non_opt(
         eng_formatter = EngFormatter(places=4, unit='A')
         voltages.append(volt)
         e_field, simulation_current, time_steps_count, collisions_count = monte_carlo(
-            volt, topology, material, particle_model, max_coll, n_particles, check_condition
+            volt, topology, material, particle_model, max_coll, n_particles, check_condition, plot_current=True
         )
         currents.append(simulation_current)
         save_current(f'outputs/{out_file}.csv', simulation_current, geo, volt, id_tracker)

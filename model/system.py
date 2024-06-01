@@ -18,6 +18,7 @@ TIME_PRECISION = 0.99
 DIST_PRECISION = 0.99
 SIGNIFICANT_DIGITS = 4
 MAX_LOOP = 200
+MAX_RECONFIG = 200
 matplotlib.use('TkAgg')
 
 
@@ -86,22 +87,32 @@ class System:
         return particles
 
 
-    def set_particle_parameters(self):
+    def set_particles_parameters(self):
         """
-        Set particle initial parameters
+        Set particles initial parameters
 
         :return: None
         """
         for particle in self.particles:
+            self.set_particle_parameters(particle)
+
+
+    def set_particle_parameters(self, particle: Particle):
+        """
+        Set particle initial parameters
+
+        :param particle: Particle to be initiated
+        :return: None
+        """
+        particle.set_init_position(self.topology.bbox)
+        init_pos = vec_to_point(particle.position)
+        _, lowest_dist = self.topology.get_closer_segment(init_pos)
+        while (not self.topology.contains(init_pos)) or (lowest_dist < self.topology.scale / 20):
             particle.set_init_position(self.topology.bbox)
             init_pos = vec_to_point(particle.position)
             _, lowest_dist = self.topology.get_closer_segment(init_pos)
-            while (not self.topology.contains(init_pos)) or (lowest_dist < self.topology.scale / 20):
-                particle.set_init_position(self.topology.bbox)
-                init_pos = vec_to_point(particle.position)
-                _, lowest_dist = self.topology.get_closer_segment(init_pos)
-            if TEST and particle.id == followed_particle_id:
-                particle.positions.append(init_pos)
+        if TEST and particle.id == followed_particle_id:
+            particle.positions.append(init_pos)
 
 
     def simulate(self, model, voltage: list, plot_current: bool = True):
@@ -113,18 +124,24 @@ class System:
         :param plot_current: define if stable current will be plotted
         :return: None
         """
-        self.set_particle_parameters()
-        while not self._stop_conditions():
+        self.set_particles_parameters()
+        reconfig_count = 0
+        while (not self._stop_conditions()) and (reconfig_count <= MAX_RECONFIG):
             self.time_steps_count += 1
             particle = self.particles[0]
             particle.set_velocity()
             traveled_time, loop_condition = model(particle)
+            if loop_condition:
+                reconfig_count += 1
+                self.set_particle_parameters(particle)
             if not loop_condition:
                 self.simulated_time += traveled_time
                 if self._stop_conditions():
                     break
                 self.currents.append(self.cal_current())
                 progress_bar(self.collisions_count, self.max_collisions)
+        if reconfig_count > MAX_RECONFIG:
+            raise Exception('Max reconfiguration')
         if plot_current:
             plot_stable_current(self.currents, voltage)
         print('\n')
@@ -237,7 +254,8 @@ class System:
         :param element: segment current group (i.e. 'direct' or 'reverse')
         :return: None
         """
-        pos = self.topology.random_segment_pos(element)
+        # pos = self.topology.random_segment_pos(element)
+        pos = self.topology.specific_segment_pos(element, particle.position)
         # pos = Point2(pos.x(), particle.position.y())
         particle.position = point_to_vec(pos)
 

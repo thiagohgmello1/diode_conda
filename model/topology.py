@@ -6,9 +6,9 @@ from matplotlib.widgets import Button
 from matplotlib.ticker import EngFormatter
 from file_readers.xml_reader import XMLReader
 from matplotlib.backend_bases import MouseButton
-from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection
+from skgeom import Point2, PolygonSet, Segment2, Polygon, intersection, Vector2
 from utils.probabilistic_operations import random_int_number, random_pos_in_segment
-from utils.complementary_operations import calc_distance_between, calc_normal, segment_to_vec, dot_prod, point_to_vec
+from utils.complementary_operations import calc_distance_between, calc_normal, segment_to_vec, dot_prod
 
 
 DIST_PRECISION = 0.99
@@ -260,12 +260,27 @@ class Topology:
         Generate random position in a random current element
 
         :param elements_list: list of elements (can be 'direct' or 'reverse')
-        :return: random position in random segment
+        :return: random position in a random segment
         """
         possible_segments = self.current_computing_elements[elements_list]
         rand_pos = random_int_number(0, len(possible_segments) - 1)
         segment = possible_segments[rand_pos]
         return random_pos_in_segment(segment)
+
+
+    def specific_segment_pos(self, elements_list: str, particle_pos: Vector2) -> Point2:
+        """
+        Generate random position in a random current element
+
+        :param elements_list: list of elements (can be 'direct' or 'reverse')
+        :param particle_pos: actual particle position
+        :return: specific position in a random segment
+        """
+        possible_segments = self.current_computing_elements[elements_list]
+        rand_pos = random_int_number(0, len(possible_segments) - 1)
+        segment = possible_segments[rand_pos]
+        point_1 = segment[0]
+        return Point2(point_1.x(), particle_pos.y())
 
 
     @staticmethod
