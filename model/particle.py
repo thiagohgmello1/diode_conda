@@ -1,10 +1,10 @@
-import copy
 import itertools
+from typing import Union
 from skgeom.draw import draw
 from skgeom import Bbox2, Vector2, Segment2
 from utils.probabilistic_operations import random_vec
 from scipy.constants import elementary_charge, electron_mass
-from utils.complementary_operations import mirror, vec_to_point, calc_versor
+from utils.complementary_operations import mirror, calc_versor
 
 
 STOP_CONDITION = 10
@@ -35,18 +35,6 @@ class Particle:
         self.position = position
         self.positions = list()
         self.drift_method = drift_method
-
-
-    def __deepcopy__(self, memodict={}):
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memodict[id(self)] = result
-        for k, v in self.__dict__.items():
-            if k == 'id':
-                setattr(result, k, next(cls.id_iter))
-            else:
-                setattr(result, k, copy.deepcopy(v, memodict))
-        return result
 
 
     def set_init_position(self, bbox: Bbox2):
@@ -82,7 +70,7 @@ class Particle:
         return acceleration
 
 
-    def calc_next_position(self, delta_t: float, delta_s: float, check_condition) -> Vector2:
+    def calc_next_position(self, delta_t: Union[float, None], delta_s: Union[float, None], check_condition) -> Vector2:
         """
         Calculate next particle position according kinematic equations for uniformly varied motion
 
@@ -109,20 +97,18 @@ class Particle:
         self.velocity = mirror(self.velocity, normal_vec)
 
 
-    def calc_drift_velocity(self, relax_time, electric_field: Vector2, mobility: float, method: str) -> Vector2:
+    def calc_drift_velocity(self, relax_time, electric_field: Vector2, mobility: float) -> None:
         """
         Calculate particle drift velocity
 
         :param relax_time: material relaxation time
         :param electric_field: applied electric field
         :param mobility: electronic material mobility
-        :param method: selected drift velocity method
-        :return: drift velocity
         """
         if self.drift_method == 'relax':
-            return self.charge * relax_time * electric_field / self.mass
+            self.velocity += self.charge * relax_time * electric_field / self.mass
         else:
-            return -mobility * electric_field
+            self.velocity += -mobility * electric_field
 
 
     def plot_traveled_path(self):
