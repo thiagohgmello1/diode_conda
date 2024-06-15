@@ -16,7 +16,7 @@ def calc_asymmetry(current_list: list, voltages: list) -> tuple[list, list]:
     v = list()
     current_len = len(current_list)
     for pos in range(int(current_len / 2)):
-        current_asymmetry = abs(current_list[pos] / current_list[current_len - pos - 1])
+        current_asymmetry = abs(current_list[current_len - pos - 1] / current_list[pos])
         v.append(voltages[pos])
         a.append(current_asymmetry)
 

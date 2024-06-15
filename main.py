@@ -1,6 +1,8 @@
+import sys
 import time
 import json
 import argparse
+import threading
 import numpy as np
 
 from pathlib import Path
@@ -76,6 +78,9 @@ def optimize(file_name: Path):
 
 
 if __name__ == '__main__':
+    sys.setrecursionlimit(100000)
+    # threading.stack_size(200000000)
+
     parser = argparse.ArgumentParser(description='Script for diode Monte Carlo simulation')
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument('--multi', '--m', type=str, help="Define simulation directory for multi-files")
