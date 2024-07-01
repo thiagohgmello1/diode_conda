@@ -6,10 +6,12 @@ import threading
 import numpy as np
 
 from pathlib import Path
+
+from model.multi_obj_opt import MultiObjOpt
 from model.particle import Particle
+from model.single_obj_opt import SingleObjOpt
 from model.topology import Topology
 from model.material import Material
-from model.optimizer import Optimizer
 from simulators.monte_carlo import monte_carlo_non_opt
 from utils.post_processing import calc_asymmetry, plot_figs
 
@@ -69,9 +71,18 @@ def optimize(file_name: Path):
 
     with open(file_name) as f:
         data = json.load(f)
-    opt = Optimizer(**data['optimizer'], material=mat, particle_model=particle_m, convergence=convergence,
-                    scale=data['geometry']['scale'])
-    result, exec_time = opt.optimize()
+    if data['optimizer']['type'] == 'numpy':
+        params = data['optimizer']['params']
+        opt = SingleObjOpt(
+            params, material=mat, particle_model=particle_m, convergence=convergence, scale=data['geometry']['scale']
+        )
+        result, exec_time = opt.optimize()
+    else:
+        params = data['optimizer']['params']
+        opt = MultiObjOpt(
+            params, material=mat, particle_model=particle_m, convergence=convergence, scale=data['geometry']['scale']
+        )
+        result, exec_time = opt.optimize()
     print(result)
 
     return exec_time

@@ -1,4 +1,3 @@
-import time
 import numpy as np
 
 from datetime import datetime
@@ -6,7 +5,6 @@ from model.material import Material
 from model.particle import Particle
 from model.topology import Topology
 from simulators.monte_carlo import monte_carlo
-from scipy.optimize import differential_evolution, NonlinearConstraint
 
 
 class Optimizer:
@@ -14,12 +12,7 @@ class Optimizer:
             self,
             pop_size: int,
             max_iter: int,
-            mutation: float,
-            recombination: float,
-            polish: bool,
             objectives: dict,
-            constraints: list,
-            bounds: dict,
             geo_mask: list,
             cur_segments: list,
             material: Material,
@@ -29,20 +22,15 @@ class Optimizer:
     ):
         self.pop_size = pop_size
         self.max_iter = max_iter
-        self.mutation = mutation
         self.material = material
         self.scale = scale
+        self.result = tuple()
         self.geo_mask = geo_mask
         self.cur_segments = cur_segments
         self.particle_m = particle_model
         self.convergence = convergence
-        self.recombination = recombination
-        self.polish = polish
         self.objectives = objectives
         self.derivative_tech = self.def_derivative_technique()
-        self.obj_func = self.choose_objective_func()
-        self.consts = self.constraints(constraints)
-        self.boundaries = self.build_boundaries(bounds)
 
 
     def def_derivative_technique(self):
@@ -69,15 +57,17 @@ class Optimizer:
 
 
     def zero_voltage_imp(self, dimensions):
-        current, voltage = self.run_specific_points(dimensions)
-        current_first_derivative, _ = self.derivative_tech(current, voltage)
+        if ("method" in self.objectives.keys()) or (self.objectives["methods"][0] == "ZBI"):
+            self.result = self.run_specific_points(dimensions)
+        current_first_derivative, _ = self.derivative_tech(self.result[0], self.result[1])
         impedance = 1 / current_first_derivative
         return impedance
 
 
     def zero_bias_responsivity(self, dimensions):
-        current, voltage = self.run_specific_points(dimensions)
-        current_first_derivative, current_second_derivative = self.derivative_tech(current, voltage)
+        if ("method" in self.objectives.keys()) or (self.objectives["methods"][0] == "ZBR"):
+            self.result = self.run_specific_points(dimensions)
+        current_first_derivative, current_second_derivative = self.derivative_tech(self.result[0], self.result[1])
         responsivity = current_second_derivative / (2 * current_first_derivative)
         return 1 / np.abs(responsivity)
 
@@ -101,52 +91,11 @@ class Optimizer:
         return current, voltage
 
 
-    def choose_objective_func(self):
-        if self.objectives["method"] == "ZBI":
-            return self.zero_voltage_imp
-        elif self.objectives["method"] == "ZBR":
-            return self.zero_bias_responsivity
-        else:
-            return self.asymmetry
-
-
-    def optimize(self):
-        exec_time = time.time()
-        result = differential_evolution(
-            self.obj_func,
-            self.boundaries,
-            maxiter=self.max_iter,
-            popsize=self.pop_size,
-            polish=self.polish,
-            mutation=self.mutation,
-            recombination=self.recombination,
-            disp=True,
-            constraints=self.consts,
-            callback=self.save_current_iter
-        )
-        exec_time = time.time() - exec_time
-        return result, exec_time
-
-
     def poly_fit_derivatives_zero_bias(self, current, voltage):
         iv_f = np.poly1d(np.polyfit(voltage, current, self.objectives['poly_order']))
         current_first_derivative = np.polyder(iv_f, 1)
         current_second_derivative = np.polyder(iv_f, 2)
         return current_first_derivative(0), current_second_derivative(0)
-
-
-    @staticmethod
-    def constraints(consts: list):
-        consts_set = set()
-        for const in consts:
-            nlc = NonlinearConstraint(eval(const[0]), eval(const[1]), eval(const[2]))
-            consts_set.add(nlc)
-        return consts_set
-
-
-    @staticmethod
-    def build_boundaries(pos_bounds):
-        return [tuple(bound) for bound in pos_bounds]
 
 
     @staticmethod
