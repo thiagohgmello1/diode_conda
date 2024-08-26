@@ -77,12 +77,14 @@ class Optimizer:
 
 
     def run_specific_points(self, dimensions):
-        dimensions = self.integer_params(dimensions)
-        topology_points = self.build_geometry(dimensions)
-        topology = Topology.from_points(topology_points, self.scale, tuple(self.cur_segments))
         voltage = list()
         current = list()
         voltage_range = self.objectives['voltage_range']
+        dimensions = self.integer_params(dimensions)
+        topology_points = self.build_geometry(dimensions)
+        if any([coord < 0 for point in topology_points[0] for coord in point]):
+            return [0] * len(voltage_range), voltage_range
+        topology = Topology.from_points(topology_points, self.scale, tuple(self.cur_segments))
         for volt in voltage_range:
             e_field, simulation_current, time_steps_count, collisions_count = \
                 monte_carlo(volt, topology, self.material, self.particle_m, **self.convergence, plot_current=False)

@@ -15,13 +15,13 @@ DIST_PRECISION = 0.99
 
 
 class Topology:
-    def __init__(self, topologies: list[Polygon], scale: float, opt: tuple = ()):
+    def __init__(self, topologies: list[Polygon], scale: float, current_segments: tuple = ()):
         """
         Create simulated topology
 
         :param topologies: list of polygon that form desired topology to be simulated
         :param scale: length scale (m) (i.e. 1e-9 for nanometer)
-        :param opt: define if geometry will be generated for optimization
+        :param current_segments: define if current segments will be defined by UI or json
         """
         topologies = self._set_orientation(topologies)
         self.bbox = None
@@ -33,35 +33,36 @@ class Topology:
         self._get_segments()
         self.scale = scale
         self.current_computing_elements = {'direct': list(), 'reverse': list()}
-        self._get_current_computing_elements(opt)
+        self._get_current_computing_elements(current_segments)
         print(self.current_computing_elements)
 
     @classmethod
-    def from_file(cls, file_name: str, scale: float):
+    def from_file(cls, file_name: str, scale: float, cur_segments: tuple = ()):
         """
         Create topology from file
 
         :param file_name: file name
         :param scale: scale dimension (i.e. 1e-6, 1e-9)
+        :param cur_segments: current segments
         :return: class instantiation
         """
         topologies = XMLReader(file_name, scale)
-        return cls(topologies.get_geometries(), scale)
+        return cls(topologies.get_geometries(), scale, cur_segments)
 
     @classmethod
-    def from_points(cls, points: list[list], scale: float, optimization: tuple = ()):
+    def from_points(cls, points: list[list], scale: float, cur_segments: tuple = ()):
         """
         Create topology from specified points
 
         :param points: geometry vertices
         :param scale: scale dimension (ex.: 1e-6; 1e-9)
-        :param optimization: optimization parameters
+        :param cur_segments: current segments
         :return: class instantiation
         """
         topologies = list()
         for geometry in points:
             topologies.append(Polygon(cls._create_points(geometry, scale)))
-        return cls(topologies, scale, optimization)
+        return cls(topologies, scale, cur_segments)
 
     def calc_topology_area(self):
         area = {'external': 0, 'internal': 0}
