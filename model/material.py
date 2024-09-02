@@ -24,6 +24,7 @@ class Material:
         :param relax_time: relaxation time (s) (if desired to define)
         :param permittivity: electric permittivity (F/m)
         :param permeability: magnetic permeability (H/m)
+        :param effective_mass: electron effective mass
         """
         self.scalar_fermi_velocity = scalar_fermi_velocity
         self.mean_free_path = mean_free_path
@@ -38,6 +39,7 @@ class Material:
     def _calc_carrier_concentration(self, carrier_dict) -> float:
         """
         Define carrier concentration
+
         :param carrier_dict: dictionary with carrier concentration data
         :return: carrier concentration
         """
@@ -66,6 +68,12 @@ class Material:
 
 
     def _calc_mean_free_path(self, mean_free_path):
+        """
+        Calculate mean free path (if not specified)
+
+        :param mean_free_path:
+        :return: mean free path
+        """
         if not mean_free_path:
             self.mean_free_path = self.relax_time * self.scalar_fermi_velocity
         else:

@@ -19,6 +19,7 @@ class Particle:
         Particle that will be simulated
 
         :param density: density of particles [electrons/particle]
+        :param drift_method: defines how drift velocity is calculated
         :param effective_mass: effective electron mass according material specifications [kg]
         :param fermi_velocity: scalar Fermi velocity [m/s]
         :param position: initial position (if desired to define nonrandom initial position)
