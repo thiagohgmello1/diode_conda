@@ -1,0 +1,48 @@
+{
+    "material": {
+        "mean_free_path": 200e-9,
+        "effective_mass": 0.02,
+        "carrier_concentration": {
+            "method": "value",
+            "value": 7.2e15
+        },
+        "scalar_fermi_velocity": 1e6,
+        "permittivity": 2.1
+    },
+    "particle": {
+        "density": 10,
+        "drift_method": "relax"
+    },
+    "geometry": {
+        "input_style": "points",
+        "scale": 1e-9,
+        "points": [[[0,0], [247,210], [247,259], [0,469], [0,259], [0,210]]]
+    },
+    "convergence": {
+        "max_coll": 1e5,
+        "n_particles": 1,
+        "geo": "arrowhead",
+        "check_condition": "distance"
+    },
+    "voltage": {
+        "v_min": -0.1,
+        "v_max": 0.1,
+        "num_points": 51
+    },
+    "optimizer": {
+        "type": "pymoo",
+        "params": {
+            "pop_size": 20,
+            "max_iter": 20,
+            "objectives": {
+                "derivative": "numerical",
+                "methods": ["ZBI", "ZBR"],
+                "voltage_range": [-0.1, 0 , 0.1]
+            },
+            "constraints": [],
+            "bounds": [[5,50], [10, 25], [2, 9]],
+            "geo_mask": [[0,0], ["x0","(x1-x2)/2"], ["x0","(x1+x2)/2"], [0,"x1"], [0,"(x1+x2)/2"], [0,"(x1-x2)/2"]],
+            "cur_segments": [[1],[4]]
+        }
+    }
+}

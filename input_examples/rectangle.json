@@ -1,0 +1,33 @@
+{
+    "material": {
+        "mean_free_path": 200e-9,
+        "mobility": 0.7380,
+        "relax_time": 6.99e-14,
+        "carrier_concentration": {
+            "method": "value",
+            "value": 6.2e15
+        },
+        "scalar_fermi_velocity": 1e6,
+        "permittivity": 3.9
+    },
+    "particle": {
+        "density": 100,
+        "drift_method": "relax"
+    },
+    "geometry": {
+        "input_style": "points",
+        "scale": 1e-6,
+        "points": [[[0,0], [10,0], [10,2.5], [0,2.5]]]
+    },
+    "convergence": {
+        "max_coll": 1e5,
+        "n_particles": 1,
+        "geo": "rectangle",
+        "check_condition": "distance"
+    },
+    "voltage": {
+        "v_min": -0.1,
+        "v_max": 0.1,
+        "num_points": 11
+    }
+}
