@@ -1,6 +1,6 @@
 # Nanodiode Conda
 
-Python software for nanodiode development using the Monte Carlo Method applied to the classical Drude model.
+Python software for 2D nanodiode development using the Monte Carlo Method applied to the classical Drude model.
 
 ## Table of Contents
 
